@@ -14,20 +14,20 @@ export default async function AdminPage({
 
   return (
     <main className="min-h-screen">
-      <div className="mx-auto grid max-w-[1180px] gap-8 px-5 py-6 sm:px-6 lg:grid-cols-[360px_1fr] lg:py-8">
-        <aside className="lg:sticky lg:top-8 lg:self-start">
+      <div className="admin-page-grid mx-auto max-w-[1180px] px-5 py-6 sm:px-6 lg:py-8">
+        <aside className="admin-rail">
           <div className="border-b pb-5" style={{ borderColor: 'var(--rule)' }}>
             <Link href="/" className="eyebrow hover:underline">
               PlantSure
             </Link>
             <h1 className="page-title mt-3">Site registration</h1>
             <p className="body-copy mt-3">
-              Register a planted site, lock counts, then generate the five-year check
-              schedule.
+              Register planting details, confirm them once, then create the five-year
+              check schedule.
             </p>
           </div>
 
-          <dl className="mt-6 grid grid-cols-3 gap-3">
+          <dl className="admin-metrics mt-6">
             <Metric label="Sites" value={overview.sites.length.toString()} />
             <Metric
               label="Locked"
@@ -53,7 +53,7 @@ export default async function AdminPage({
               <div>
                 <p className="eyebrow">New site</p>
                 <h2 id="register-heading" className="section-title mt-1">
-                  Register planted counts
+                  Register planting details
                 </h2>
               </div>
             </div>
@@ -159,7 +159,7 @@ export default async function AdminPage({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-t pt-3" style={{ borderColor: 'var(--rule)' }}>
+    <div className="metric-line">
       <dt className="eyebrow">{label}</dt>
       <dd className="big-number mt-1 text-[24px]">{value}</dd>
     </div>
@@ -236,7 +236,10 @@ function StatusLabel({
   const locked = status === 'counts_confirmed'
 
   return (
-    <span className="justify-self-start text-[13px] sm:justify-self-end" style={{ color: locked ? 'var(--alive)' : 'var(--ink-soft)' }}>
+    <span
+      className="justify-self-start text-[13px] sm:justify-self-end"
+      style={{ color: locked ? 'var(--alive)' : 'var(--ink-soft)' }}
+    >
       {locked ? `${windowsCount} checks created` : 'Counts open'}
     </span>
   )

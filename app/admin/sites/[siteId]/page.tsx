@@ -27,6 +27,7 @@ export default async function AdminSitePage({
   }
 
   const locked = site.status === 'counts_confirmed'
+  const monitoringEndPreview = site.monitoringEnd ?? addYears(site.plantingDate, 5)
   const timeline = timelineFromWindows(site.windows)
 
   return (
@@ -44,12 +45,12 @@ export default async function AdminSitePage({
                 {site.village}, {site.taluk}, {site.district}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
               <Metric label="Planted" value={site.plantedCount.toLocaleString()} />
               <Metric label="Date" value={site.plantingDate} />
               <Metric label="Checks" value={site.windowsCount.toString()} />
               <Metric label="Records" value={site.generatedEventsCount.toString()} />
-            </div>
+            </dl>
           </div>
         </header>
 
@@ -66,7 +67,7 @@ export default async function AdminSitePage({
               <div>
                 <p className="eyebrow">Gate</p>
                 <h2 id="gate-heading" className="section-title mt-1">
-                  Confirm counts
+                  Confirm planting details
                 </h2>
               </div>
             </div>
@@ -90,12 +91,27 @@ export default async function AdminSitePage({
               {locked ? (
                 <div>
                   <p className="body-copy">
-                    The planted count is locked. Further changes require a correction
-                    workflow.
+                    These planting details are confirmed. The planted count is locked
+                    and future checks compare against it.
                   </p>
                 </div>
               ) : (
                 <form action={confirmSiteCounts} className="grid gap-5">
+                  <p className="body-copy">
+                    Once you confirm, these numbers go on the site board and cannot be
+                    edited afterwards. Every future check compares against them.
+                  </p>
+                  <ul className="fact-list">
+                    <li>
+                      Print {site.plantedCount.toLocaleString()} plants on the site
+                      board, permanently
+                    </li>
+                    <li>
+                      Schedule 20 checks from {site.plantingDate} to{' '}
+                      {monitoringEndPreview}
+                    </li>
+                    <li>Start the five-year monitoring period</li>
+                  </ul>
                   <input type="hidden" name="siteId" value={site.id} />
                   <label className="field">
                     <span>Monitoring start</span>
@@ -107,8 +123,8 @@ export default async function AdminSitePage({
                       required
                     />
                   </label>
-                  <button className="danger-button" type="submit">
-                    Lock counts and create checks
+                  <button className="command-button" type="submit">
+                    Confirm planting details
                   </button>
                 </form>
               )}
@@ -179,7 +195,7 @@ export default async function AdminSitePage({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-t pt-3" style={{ borderColor: 'var(--rule)' }}>
+    <div className="metric-line">
       <dt className="eyebrow">{label}</dt>
       <dd className="mono mt-1 text-[14px]">{value}</dd>
     </div>
@@ -215,4 +231,11 @@ function statusText(status: string): string {
   }
 
   return status
+}
+
+function addYears(dateString: string, years: number): string {
+  const [year, month, day] = dateString.split('-').map(Number)
+  const target = new Date(Date.UTC(year + years, month - 1, day))
+
+  return target.toISOString().slice(0, 10)
 }
