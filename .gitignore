@@ -1,0 +1,15 @@
+node_modules
+.next
+.vercel
+out
+dist
+coverage
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+.DS_Store
+
+# Separate deployed landing checkout. Wire it to packages/plantsure-ui later.
+plantsure-landing/
+plantsure-landing-preview.html

@@ -1,0 +1,19 @@
+{
+  "name": "plantsure",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/plantsure-ui"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @feedbacknfc/plantsure-web",
+    "build": "npm run build -w @feedbacknfc/plantsure-web",
+    "lint": "npm run lint -w @feedbacknfc/plantsure-web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run lint && npm run typecheck && npm run build"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

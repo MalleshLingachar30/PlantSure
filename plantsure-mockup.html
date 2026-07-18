@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlantSure — visual reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF9F5; --card:#FFFFFF; --rule:#E5E2D9; --rule-strong:#C9C5B8;
+    --ink:#1F1E1B; --ink-soft:#5F5D55; --ink-faint:#8B887E;
+    --alive:#3B6D11; --alive-bg:#EAF3DE;
+    --watch:#854F0B; --watch-bg:#FAEEDA;
+    --overdue:#A32D2D; --overdue-bg:#FCEBEB;
+    --radius:6px; --radius-card:10px;
+    --serif:'Source Serif 4',Georgia,serif;
+    --sans:'Inter',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;padding:28px 20px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+
+  .note{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px}
+  .divide{border:0;border-top:1px solid var(--rule);margin:52px 0 32px}
+
+  /* ── screen frame ── */
+  .screen{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius-card);padding:30px 32px;box-shadow:0 1px 2px rgba(31,30,27,.04)}
+
+  h1{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:-.01em}
+  h2{font-family:var(--serif);font-size:17px;font-weight:400;margin-bottom:2px}
+  .sub{color:var(--ink-soft);font-size:14px}
+  .label{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint)}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* ── overdue banner ── */
+  .banner{display:flex;gap:14px;align-items:flex-start;background:var(--overdue-bg);border:1px solid #F0CFCF;border-left:3px solid var(--overdue);border-radius:var(--radius);padding:14px 16px;margin:22px 0 26px}
+  .banner .bt{font-weight:600;color:var(--overdue);font-size:14px;margin-bottom:2px}
+  .banner .bd{font-size:14px;color:#7A2626;line-height:1.5}
+  .banner button{margin-left:auto;flex-shrink:0;background:transparent;border:1px solid var(--overdue);color:var(--overdue);border-radius:var(--radius);padding:6px 12px;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .banner button:hover{background:var(--overdue);color:#fff}
+
+  /* ── stats ── */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:26px 0 4px}
+  .stat .v{font-family:var(--mono);font-size:32px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.2}
+  .stat .l{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
+
+  /* ── table ── */
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th{text-align:left;font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);padding:0 12px 9px 0;border-bottom:1px solid var(--rule-strong)}
+  th.r,td.r{text-align:right;padding-right:0}
+  td{padding:13px 12px 13px 0;border-bottom:1px solid var(--rule);font-size:14px;vertical-align:middle}
+  tr.od td{background:linear-gradient(90deg,var(--overdue-bg) 0%, rgba(252,235,235,0) 62%)}
+  .sid{font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px}
+  .dim{color:var(--ink-faint)}
+
+  /* ── status pill ── */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;white-space:nowrap}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .s-alive{color:var(--alive)}   .s-alive .dot{background:var(--alive)}
+  .s-watch{color:var(--watch)}   .s-watch .dot{background:var(--watch)}
+  .s-od{color:var(--overdue);font-weight:600} .s-od .dot{background:var(--overdue)}
+  .s-none{color:var(--ink-faint)} .s-none .dot{background:var(--rule-strong)}
+
+  /* ── timeline (the signature) ── */
+  .tl{display:flex;gap:26px;flex-wrap:wrap;padding:20px 0 6px}
+  .yr{display:flex;flex-direction:column;gap:8px}
+  .yl{font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .dots{display:flex;align-items:center;gap:0}
+  .d{width:13px;height:13px;border-radius:50%;flex-shrink:0;position:relative}
+  .d-done{background:var(--alive)}
+  .d-sched{background:transparent;border:1.5px solid var(--rule-strong)}
+  .d-due{background:var(--ink-faint);opacity:.5}
+  .d-od{background:var(--overdue);box-shadow:0 0 0 3px var(--overdue-bg)}
+  .lnk{width:12px;height:1.5px;background:var(--rule-strong);flex-shrink:0}
+  .lnk-done{background:var(--alive);opacity:.4}
+  .tlk{display:flex;gap:20px;flex-wrap:wrap;padding-top:16px;margin-top:14px;border-top:1px solid var(--rule)}
+  .tlk span{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft)}
+
+  /* ── phone ── */
+  .phone{width:380px;max-width:100%;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:22px 20px 26px;box-shadow:0 2px 8px rgba(31,30,27,.06)}
+  .q{background:var(--watch-bg);border:1px solid #EBD8B4;border-radius:var(--radius);padding:11px 13px;font-size:13px;color:#6B3F08;line-height:1.45;margin-bottom:20px;display:flex;gap:10px;align-items:center}
+  .q button{margin-left:auto;background:transparent;border:1px solid #C99A3E;color:#6B3F08;border-radius:4px;padding:4px 9px;font-size:12px;font-weight:500;font-family:var(--sans);cursor:pointer}
+  .ro{margin:18px 0}
+  .ro .v{font-family:var(--mono);font-size:32px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink-soft);line-height:1.2}
+  .ask{font-family:var(--serif);font-size:19px;margin:22px 0 10px}
+  .inp{width:100%;font-family:var(--mono);font-size:40px;font-weight:500;font-variant-numeric:tabular-nums;text-align:center;padding:14px;border:1.5px solid var(--rule-strong);border-radius:var(--radius);background:var(--paper);color:var(--ink);outline:none}
+  .inp:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(31,30,27,.06)}
+  .live{text-align:center;margin-top:12px;font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
+  .photos{display:flex;gap:9px;margin-top:9px}
+  .ph{width:62px;height:62px;border-radius:var(--radius);background:var(--paper);border:1px solid var(--rule);display:grid;place-items:center;font-size:19px}
+  .ph-add{border:1.5px dashed var(--rule-strong);color:var(--ink-faint);cursor:pointer}
+  .gps{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--alive);margin-top:18px}
+  .save{width:100%;height:56px;margin-top:24px;background:var(--ink);color:var(--paper);border:0;border-radius:var(--radius);font-family:var(--sans);font-size:16px;font-weight:500;cursor:pointer}
+  .save:hover{background:#000}
+  .hr{border:0;border-top:1px solid var(--rule);margin:20px 0}
+
+  .cols{display:grid;grid-template-columns:1fr 380px;gap:34px;align-items:start}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr);gap:22px 2px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="note">Screen 1 — Programme dashboard · what Priya sees before a meeting</p>
+
+<div class="screen">
+  <h1>Green Karnataka 2026</h1>
+  <p class="sub">ABC Foundation · Monitored to July 2031</p>
+
+  <div class="banner">
+    <div>
+      <div class="bt">2 sites have an overdue check</div>
+      <div class="bd">No one has visited since March. IAFT was notified on 19 June.</div>
+    </div>
+    <button>View sites</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v">24</div><div class="l">sites</div></div>
+    <div class="stat"><div class="v">14,400</div><div class="l">planted</div></div>
+    <div class="stat"><div class="v">11,982</div><div class="l">alive</div></div>
+    <div class="stat"><div class="v">83.2%</div><div class="l">survival</div></div>
+  </div>
+
+  <hr class="hr" style="margin:28px 0 18px">
+  <h2 style="margin-bottom:12px">Sites</h2>
+
+  <table>
+    <thead><tr>
+      <th>Site ID</th><th>District</th>
+      <th class="r">Planted</th><th class="r">Alive</th><th class="r">Survival</th>
+      <th style="padding-left:22px">Last check</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      <tr class="od">
+        <td class="sid">KA-TMK-GUB-000123</td><td>Tumakuru</td>
+        <td class="r num">600</td><td class="r num">487</td><td class="r num">81.2%</td>
+        <td style="padding-left:22px" class="num dim">12 Mar</td>
+        <td><span class="pill s-od"><i class="dot"></i>Overdue</span></td>
+      </tr>
+      <tr class="od">
+        <td class="sid">KA-KLR-HSN-000141</td><td>Hassan</td>
+        <td class="r num">800</td><td class="r num">748</td><td class="r num">93.5%</td>
+        <td style="padding-left:22px" class="num dim">08 Mar</td>
+        <td><span class="pill s-od"><i class="dot"></i>Overdue</span></td>
+      </tr>
+      <tr>
+        <td class="sid">KA-TMK-GUB-000124</td><td>Tumakuru</td>
+        <td class="r num">600</td><td class="r num">561</td><td class="r num">93.5%</td>
+        <td style="padding-left:22px" class="num dim">14 Jun</td>
+        <td><span class="pill s-alive"><i class="dot"></i>On target</span></td>
+      </tr>
+      <tr>
+        <td class="sid">KA-TMK-GUB-000127</td><td>Tumakuru</td>
+        <td class="r num">600</td><td class="r num">449</td><td class="r num">74.8%</td>
+        <td style="padding-left:22px" class="num dim">14 Jun</td>
+        <td><span class="pill s-watch"><i class="dot"></i>Below target</span></td>
+      </tr>
+      <tr>
+        <td class="sid">KA-KLR-HSN-000088</td><td>Hassan</td>
+        <td class="r num">400</td><td class="r num dim">—</td><td class="r num dim">—</td>
+        <td style="padding-left:22px" class="dim">—</td>
+        <td><span class="pill s-none"><i class="dot"></i>Not checked yet</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="note" style="margin-top:14px">
+  Row 2 is red at 93.5% survival. That is correct — unverified survival is a claim, not a fact.
+</p>
+
+<hr class="divide">
+
+<p class="note">Screen 2 — Site detail · the visit timeline is the signature element</p>
+
+<div class="cols">
+  <div class="screen">
+    <h1 class="mono" style="font-size:20px;letter-spacing:.02em">KA-TMK-GUB-000123</h1>
+    <p class="sub">Gubbi site 1 · Gubbi, Tumakuru</p>
+
+    <hr class="hr" style="margin:22px 0 6px">
+    <p class="label">Checks</p>
+
+    <div class="tl">
+      <div class="yr"><div class="yl">Year 1</div><div class="dots">
+        <i class="d d-done"></i><i class="lnk lnk-done"></i><i class="d d-done"></i><i class="lnk lnk-done"></i><i class="d d-done"></i><i class="lnk lnk-done"></i><i class="d d-done"></i>
+      </div></div>
+      <div class="yr"><div class="yl">Year 2</div><div class="dots">
+        <i class="d d-done"></i><i class="lnk lnk-done"></i><i class="d d-done"></i><i class="lnk"></i><i class="d d-od"></i><i class="lnk"></i><i class="d d-sched"></i>
+      </div></div>
+      <div class="yr"><div class="yl">Year 3</div><div class="dots">
+        <i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i>
+      </div></div>
+      <div class="yr"><div class="yl">Year 4</div><div class="dots">
+        <i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i>
+      </div></div>
+      <div class="yr"><div class="yl">Year 5</div><div class="dots">
+        <i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i><i class="lnk"></i><i class="d d-sched"></i>
+      </div></div>
+    </div>
+
+    <div class="tlk">
+      <span><i class="d d-done" style="width:9px;height:9px"></i>Checked</span>
+      <span><i class="d d-od" style="width:9px;height:9px;box-shadow:none"></i>No one visited</span>
+      <span><i class="d d-sched" style="width:9px;height:9px"></i>Scheduled</span>
+    </div>
+
+    <div class="banner" style="margin:22px 0 0">
+      <div>
+        <div class="bt">Year 2, check 3 was due 12 June</div>
+        <div class="bd">No one has visited. IAFT notified 19 June.</div>
+      </div>
+    </div>
+
+    <hr class="hr" style="margin:26px 0 14px">
+    <p class="label" style="margin-bottom:4px">History</p>
+    <table>
+      <tbody>
+        <tr><td class="num dim" style="width:100px">12 Mar 2027</td><td class="num">487 alive</td><td class="num">81.2%</td><td class="dim">Ravi K.</td><td class="r dim">2 photos</td></tr>
+        <tr><td class="num dim">14 Dec 2026</td><td class="num">523 alive</td><td class="num">87.2%</td><td class="dim">Ravi K.</td><td class="r dim">2 photos</td></tr>
+        <tr><td class="num dim">18 Sep 2026</td><td class="num">578 alive</td><td class="num">96.3%</td><td class="dim">Ravi K.</td><td class="r dim">3 photos</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <p class="note">Screen 3 — Record a check · Ravi, 380px, in the sun</p>
+    <div class="phone">
+      <div class="q">
+        3 checks saved on this phone. Uploading when you have signal.
+        <button>Retry</button>
+      </div>
+
+      <h2>Gubbi site 1</h2>
+      <p class="sid dim" style="font-size:12px">KA-TMK-GUB-000123</p>
+      <p class="sub" style="font-size:13px;margin-top:3px">Year 2, check 3</p>
+
+      <hr class="hr">
+
+      <div class="ro">
+        <div class="label">Planted</div>
+        <div class="v">600</div>
+      </div>
+
+      <div class="ask">How many are alive?</div>
+      <input class="inp" id="alive" type="text" inputmode="numeric" value="487" aria-label="Plants alive">
+      <div class="live" id="live"><span style="color:var(--watch);font-weight:500">81.2% · below target</span></div>
+
+      <hr class="hr">
+
+      <div class="label" style="margin-bottom:2px">Photos</div>
+      <div class="photos">
+        <div class="ph">🌱</div><div class="ph">🌿</div><div class="ph ph-add">+</div>
+      </div>
+
+      <div class="gps">✓ Location captured</div>
+
+      <button class="save">Save check</button>
+    </div>
+  </div>
+</div>
+
+<p class="note" style="margin-top:18px">
+  One number. Live survival as he types. GPS never blocks. Offline saves silently.
+</p>
+
+</div>
+
+<script>
+  const planted = 600;
+  const inp = document.getElementById('alive');
+  const live = document.getElementById('live');
+  inp.addEventListener('input', () => {
+    const n = parseInt(inp.value.replace(/\D/g,''), 10);
+    if (isNaN(n)) { live.innerHTML = '<span style="color:var(--ink-faint)">—</span>'; return; }
+    const pct = (n / planted) * 100;
+    const [c, t] = pct >= 85 ? ['var(--alive)','on target']
+                : pct >= 50 ? ['var(--watch)','below target']
+                : ['var(--overdue)','needs attention'];
+    live.innerHTML = `<span style="color:${c};font-weight:500">${pct.toFixed(1)}% · ${t}</span>`;
+  });
+</script>
+</body>
+</html>
