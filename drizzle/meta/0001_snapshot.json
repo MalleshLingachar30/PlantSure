@@ -1,0 +1,1179 @@
+{
+  "id": "fff0b7e0-cf74-40a0-ba12-254a53cbff69",
+  "prevId": "87ef44aa-531f-4ba8-9d8d-f3f5e9a7deca",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.plantation_audit_windows": {
+      "name": "plantation_audit_windows",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence_number": {
+          "name": "sequence_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cycle_label": {
+          "name": "cycle_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grace_until": {
+          "name": "grace_until",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "plantation_audit_window_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "assigned_member_id": {
+          "name": "assigned_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audit_id": {
+          "name": "audit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "missed_at": {
+          "name": "missed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notified_at": {
+          "name": "notified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "waiver_reason": {
+          "name": "waiver_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "waived_by": {
+          "name": "waived_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "waived_at": {
+          "name": "waived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "plantation_audit_windows_status_due_date_idx": {
+          "name": "plantation_audit_windows_status_due_date_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "plantation_audit_windows_site_id_plantation_sites_id_fk": {
+          "name": "plantation_audit_windows_site_id_plantation_sites_id_fk",
+          "tableFrom": "plantation_audit_windows",
+          "tableTo": "plantation_sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_audit_windows_assigned_member_id_plantation_members_id_fk": {
+          "name": "plantation_audit_windows_assigned_member_id_plantation_members_id_fk",
+          "tableFrom": "plantation_audit_windows",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "assigned_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_audit_windows_waived_by_plantation_members_id_fk": {
+          "name": "plantation_audit_windows_waived_by_plantation_members_id_fk",
+          "tableFrom": "plantation_audit_windows",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "waived_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantation_audit_windows_site_sequence_unique": {
+          "name": "plantation_audit_windows_site_sequence_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "site_id",
+            "sequence_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_audits": {
+      "name": "plantation_audits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_id": {
+          "name": "window_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "client_uuid": {
+          "name": "client_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auditor_member_id": {
+          "name": "auditor_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audited_at": {
+          "name": "audited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "access_method": {
+          "name": "access_method",
+          "type": "plantation_audit_access_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planted_count": {
+          "name": "planted_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surviving_count": {
+          "name": "surviving_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "missing_count": {
+          "name": "missing_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "greatest(planted_count - surviving_count, 0)",
+            "type": "stored"
+          }
+        },
+        "survival_rate": {
+          "name": "survival_rate",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "case when planted_count = 0 then 0 else round((surviving_count::numeric / planted_count::numeric) * 100, 2) end",
+            "type": "stored"
+          }
+        },
+        "band": {
+          "name": "band",
+          "type": "plantation_audit_band",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "plantation_audit_band_for_counts(planted_count, surviving_count)",
+            "type": "stored"
+          }
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gps_accuracy_m": {
+          "name": "gps_accuracy_m",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "distance_from_site_m": {
+          "name": "distance_from_site_m",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gps_status": {
+          "name": "gps_status",
+          "type": "plantation_gps_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "photo_urls": {
+          "name": "photo_urls",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remarks": {
+          "name": "remarks",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "plantation_audits_site_id_idx": {
+          "name": "plantation_audits_site_id_idx",
+          "columns": [
+            {
+              "expression": "site_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plantation_audits_window_id_idx": {
+          "name": "plantation_audits_window_id_idx",
+          "columns": [
+            {
+              "expression": "window_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plantation_audits_client_uuid_idx": {
+          "name": "plantation_audits_client_uuid_idx",
+          "columns": [
+            {
+              "expression": "client_uuid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "plantation_audits_site_id_plantation_sites_id_fk": {
+          "name": "plantation_audits_site_id_plantation_sites_id_fk",
+          "tableFrom": "plantation_audits",
+          "tableTo": "plantation_sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_audits_window_id_plantation_audit_windows_id_fk": {
+          "name": "plantation_audits_window_id_plantation_audit_windows_id_fk",
+          "tableFrom": "plantation_audits",
+          "tableTo": "plantation_audit_windows",
+          "columnsFrom": [
+            "window_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "plantation_audits_auditor_member_id_plantation_members_id_fk": {
+          "name": "plantation_audits_auditor_member_id_plantation_members_id_fk",
+          "tableFrom": "plantation_audits",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "auditor_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantation_audits_client_uuid_unique": {
+          "name": "plantation_audits_client_uuid_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "client_uuid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_boards": {
+      "name": "plantation_boards",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "qr_url": {
+          "name": "qr_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "generated_by": {
+          "name": "generated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installed_at": {
+          "name": "installed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "installed_by": {
+          "name": "installed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "install_photo_url": {
+          "name": "install_photo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "install_lat": {
+          "name": "install_lat",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "install_lng": {
+          "name": "install_lng",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "plantation_board_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'generated'"
+        }
+      },
+      "indexes": {
+        "plantation_boards_site_id_idx": {
+          "name": "plantation_boards_site_id_idx",
+          "columns": [
+            {
+              "expression": "site_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "plantation_boards_site_id_plantation_sites_id_fk": {
+          "name": "plantation_boards_site_id_plantation_sites_id_fk",
+          "tableFrom": "plantation_boards",
+          "tableTo": "plantation_sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_boards_generated_by_plantation_members_id_fk": {
+          "name": "plantation_boards_generated_by_plantation_members_id_fk",
+          "tableFrom": "plantation_boards",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "generated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_boards_installed_by_plantation_members_id_fk": {
+          "name": "plantation_boards_installed_by_plantation_members_id_fk",
+          "tableFrom": "plantation_boards",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "installed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantation_boards_site_id_unique": {
+          "name": "plantation_boards_site_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "site_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_members": {
+      "name": "plantation_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "clerk_user_id": {
+          "name": "clerk_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "plantation_member_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'admin'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "plantation_members_clerk_user_id_idx": {
+          "name": "plantation_members_clerk_user_id_idx",
+          "columns": [
+            {
+              "expression": "clerk_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantation_members_clerk_user_id_unique": {
+          "name": "plantation_members_clerk_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "clerk_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_programs": {
+      "name": "plantation_programs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "knowledge_partner_org_id": {
+          "name": "knowledge_partner_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "implementer_org_id": {
+          "name": "implementer_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monitoring_years": {
+          "name": "monitoring_years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        },
+        "audit_frequency": {
+          "name": "audit_frequency",
+          "type": "plantation_audit_frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'quarterly'"
+        },
+        "survival_threshold": {
+          "name": "survival_threshold",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'85'"
+        },
+        "escalation_email": {
+          "name": "escalation_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "plantation_program_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "next_location_sequence": {
+          "name": "next_location_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_sites": {
+      "name": "plantation_sites",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "program_id": {
+          "name": "program_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district": {
+          "name": "district",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taluk": {
+          "name": "taluk",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "village": {
+          "name": "village",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planted_count": {
+          "name": "planted_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "planting_date": {
+          "name": "planting_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "species_notes": {
+          "name": "species_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "plantation_site_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'registered'"
+        },
+        "monitoring_start": {
+          "name": "monitoring_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monitoring_end": {
+          "name": "monitoring_end",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_member_id": {
+          "name": "created_by_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "plantation_sites_program_id_idx": {
+          "name": "plantation_sites_program_id_idx",
+          "columns": [
+            {
+              "expression": "program_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plantation_sites_location_id_idx": {
+          "name": "plantation_sites_location_id_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "plantation_sites_program_id_plantation_programs_id_fk": {
+          "name": "plantation_sites_program_id_plantation_programs_id_fk",
+          "tableFrom": "plantation_sites",
+          "tableTo": "plantation_programs",
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "plantation_sites_created_by_member_id_plantation_members_id_fk": {
+          "name": "plantation_sites_created_by_member_id_plantation_members_id_fk",
+          "tableFrom": "plantation_sites",
+          "tableTo": "plantation_members",
+          "columnsFrom": [
+            "created_by_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantation_sites_location_id_unique": {
+          "name": "plantation_sites_location_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantation_window_events": {
+      "name": "plantation_window_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "window_id": {
+          "name": "window_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "plantation_window_event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "plantation_window_events_window_id_idx": {
+          "name": "plantation_window_events_window_id_idx",
+          "columns": [
+            {
+              "expression": "window_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plantation_window_events_event_type_idx": {
+          "name": "plantation_window_events_event_type_idx",
+          "columns": [
+            {
+              "expression": "event_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plantation_window_events_created_at_idx": {
+          "name": "plantation_window_events_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "plantation_window_events_window_id_plantation_audit_windows_id_fk": {
+          "name": "plantation_window_events_window_id_plantation_audit_windows_id_fk",
+          "tableFrom": "plantation_window_events",
+          "tableTo": "plantation_audit_windows",
+          "columnsFrom": [
+            "window_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.plantation_audit_access_method": {
+      "name": "plantation_audit_access_method",
+      "schema": "public",
+      "values": [
+        "qr",
+        "manual"
+      ]
+    },
+    "public.plantation_audit_band": {
+      "name": "plantation_audit_band",
+      "schema": "public",
+      "values": [
+        "healthy",
+        "watch",
+        "poor",
+        "critical"
+      ]
+    },
+    "public.plantation_audit_frequency": {
+      "name": "plantation_audit_frequency",
+      "schema": "public",
+      "values": [
+        "monthly",
+        "quarterly",
+        "half_yearly",
+        "annual"
+      ]
+    },
+    "public.plantation_audit_window_status": {
+      "name": "plantation_audit_window_status",
+      "schema": "public",
+      "values": [
+        "scheduled",
+        "completed",
+        "missed",
+        "waived"
+      ]
+    },
+    "public.plantation_board_status": {
+      "name": "plantation_board_status",
+      "schema": "public",
+      "values": [
+        "generated",
+        "installed",
+        "damaged",
+        "missing",
+        "replaced",
+        "retired"
+      ]
+    },
+    "public.plantation_gps_status": {
+      "name": "plantation_gps_status",
+      "schema": "public",
+      "values": [
+        "confirmed",
+        "plausible",
+        "questionable",
+        "unavailable"
+      ]
+    },
+    "public.plantation_member_role": {
+      "name": "plantation_member_role",
+      "schema": "public",
+      "values": [
+        "admin",
+        "auditor"
+      ]
+    },
+    "public.plantation_program_status": {
+      "name": "plantation_program_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "closed"
+      ]
+    },
+    "public.plantation_site_status": {
+      "name": "plantation_site_status",
+      "schema": "public",
+      "values": [
+        "registered",
+        "counts_confirmed",
+        "board_generated",
+        "board_installed",
+        "monitoring",
+        "closed"
+      ]
+    },
+    "public.plantation_window_event_type": {
+      "name": "plantation_window_event_type",
+      "schema": "public",
+      "values": [
+        "generated",
+        "completed",
+        "missed",
+        "notified",
+        "waived",
+        "reopened"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

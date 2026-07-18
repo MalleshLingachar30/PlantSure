@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import { Client } from 'pg'
 import {
@@ -10,7 +10,7 @@ import {
   createPlantationSite,
 } from '../lib/plantation-registration'
 
-const migrationPath = new URL('../drizzle/0000_remarkable_justin_hammer.sql', import.meta.url)
+const migrationsPath = new URL('../drizzle/', import.meta.url)
 const memberId = '00000000-0000-4000-8000-000000000020'
 
 type MigratedDatabase = {
@@ -45,7 +45,14 @@ async function withMigratedDatabase(run: (database: MigratedDatabase) => Promise
 }
 
 async function migrationSqlForSchema(schemaName: string): Promise<string> {
-  const migrationSql = await readFile(migrationPath, 'utf8')
+  const migrationFiles = (await readdir(migrationsPath))
+    .filter((file) => file.endsWith('.sql'))
+    .sort()
+  const migrationSql = (
+    await Promise.all(
+      migrationFiles.map((file) => readFile(new URL(file, migrationsPath), 'utf8')),
+    )
+  ).join('\n')
 
   return migrationSql.replaceAll('"public".', `${quoteIdentifier(schemaName)}.`)
 }

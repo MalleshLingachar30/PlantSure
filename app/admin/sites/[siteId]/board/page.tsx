@@ -2,7 +2,9 @@ import QRCode from 'qrcode'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PrintButton } from '@/components/print-button'
+import { requireAdminMember } from '@/lib/auth-member'
 import { getAdminSiteDetail } from '@/lib/admin-data'
+import { withDatabase } from '@/lib/db'
 import { displayDate, siteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +15,8 @@ export default async function BoardPage({
   params: Promise<{ siteId: string }>
 }) {
   const { siteId } = await params
+  await withDatabase(requireAdminMember)
+
   const site = await getAdminSiteDetail(siteId)
 
   if (!site) {

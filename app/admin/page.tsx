@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { registerPilotSite } from './actions'
+import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
+import { hasDatabaseUrl, withDatabase } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +11,12 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
+  await requireSignedIn()
+
+  if (hasDatabaseUrl()) {
+    await withDatabase(requireAdminMember)
+  }
+
   const [{ error }, overview] = await Promise.all([searchParams, getAdminOverview()])
   const formDisabled = !overview.configured
 

@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { confirmSiteCounts } from '../../actions'
+import { requireAdminMember } from '@/lib/auth-member'
 import {
   type AdminAuditWindow,
   getAdminSiteDetail,
 } from '@/lib/admin-data'
+import { withDatabase } from '@/lib/db'
 import {
   type VisitTimelineEntry,
   VisitTimeline,
@@ -20,6 +22,8 @@ export default async function AdminSitePage({
   searchParams: Promise<{ confirmed?: string }>
 }) {
   const [{ siteId }, { confirmed }] = await Promise.all([params, searchParams])
+  await withDatabase(requireAdminMember)
+
   const site = await getAdminSiteDetail(siteId)
 
   if (!site) {

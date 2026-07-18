@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ClerkProvider } from '@clerk/nextjs'
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 
@@ -36,7 +37,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${serif.variable} ${mono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <ClerkProvider dynamic>{children}</ClerkProvider>
+      </body>
     </html>
   )
 }

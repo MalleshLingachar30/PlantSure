@@ -72,6 +72,11 @@ export const windowEventTypeEnum = pgEnum('plantation_window_event_type', [
   'reopened',
 ])
 
+export const memberRoleEnum = pgEnum('plantation_member_role', [
+  'admin',
+  'auditor',
+])
+
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -91,6 +96,21 @@ export const plantationPrograms = pgTable('plantation_programs', {
   nextLocationSequence: integer('next_location_sequence').default(1).notNull(),
   ...timestamps,
 })
+
+export const plantationMembers = pgTable(
+  'plantation_members',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    clerkUserId: text('clerk_user_id').notNull().unique(),
+    email: text('email'),
+    displayName: text('display_name'),
+    role: memberRoleEnum('role').default('auditor').notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    clerkUserIdIdx: index('plantation_members_clerk_user_id_idx').on(table.clerkUserId),
+  }),
+)
 
 export const plantationSites = pgTable(
   'plantation_sites',
@@ -112,7 +132,9 @@ export const plantationSites = pgTable(
     status: siteStatusEnum('status').default('registered').notNull(),
     monitoringStart: date('monitoring_start'),
     monitoringEnd: date('monitoring_end'),
-    createdByMemberId: uuid('created_by_member_id').notNull(),
+    createdByMemberId: uuid('created_by_member_id')
+      .notNull()
+      .references(() => plantationMembers.id, { onDelete: 'restrict' }),
     ...timestamps,
   },
   (table) => ({
@@ -131,9 +153,13 @@ export const plantationBoards = pgTable(
       .unique(),
     qrUrl: text('qr_url').notNull(),
     generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
-    generatedBy: uuid('generated_by').notNull(),
+    generatedBy: uuid('generated_by')
+      .notNull()
+      .references(() => plantationMembers.id, { onDelete: 'restrict' }),
     installedAt: timestamp('installed_at', { withTimezone: true }),
-    installedBy: uuid('installed_by'),
+    installedBy: uuid('installed_by').references(() => plantationMembers.id, {
+      onDelete: 'restrict',
+    }),
     installPhotoUrl: text('install_photo_url'),
     installLat: numeric('install_lat', { precision: 9, scale: 6 }),
     installLng: numeric('install_lng', { precision: 9, scale: 6 }),
@@ -156,12 +182,16 @@ export const plantationAuditWindows = pgTable(
     dueDate: date('due_date').notNull(),
     graceUntil: date('grace_until').notNull(),
     status: auditWindowStatusEnum('status').default('scheduled').notNull(),
-    assignedMemberId: uuid('assigned_member_id'),
+    assignedMemberId: uuid('assigned_member_id').references(() => plantationMembers.id, {
+      onDelete: 'restrict',
+    }),
     auditId: uuid('audit_id'),
     missedAt: timestamp('missed_at', { withTimezone: true }),
     notifiedAt: timestamp('notified_at', { withTimezone: true }),
     waiverReason: text('waiver_reason'),
-    waivedBy: uuid('waived_by'),
+    waivedBy: uuid('waived_by').references(() => plantationMembers.id, {
+      onDelete: 'restrict',
+    }),
     waivedAt: timestamp('waived_at', { withTimezone: true }),
   },
   (table) => ({
@@ -182,7 +212,9 @@ export const plantationAudits = pgTable(
       .references(() => plantationSites.id, { onDelete: 'restrict' }),
     windowId: uuid('window_id').references(() => plantationAuditWindows.id, { onDelete: 'set null' }),
     clientUuid: text('client_uuid').notNull().unique(),
-    auditorMemberId: uuid('auditor_member_id').notNull(),
+    auditorMemberId: uuid('auditor_member_id')
+      .notNull()
+      .references(() => plantationMembers.id, { onDelete: 'restrict' }),
     auditedAt: timestamp('audited_at', { withTimezone: true }).notNull(),
     receivedAt: timestamp('received_at', { withTimezone: true }).defaultNow().notNull(),
     accessMethod: auditAccessMethodEnum('access_method').notNull(),

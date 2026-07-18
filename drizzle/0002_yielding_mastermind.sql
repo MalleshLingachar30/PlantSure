@@ -1,0 +1,1 @@
+ALTER TABLE "plantation_members" ALTER COLUMN "role" SET DEFAULT 'auditor';

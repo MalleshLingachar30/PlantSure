@@ -9,9 +9,8 @@ import {
   createPlantationProgram,
   createPlantationSite,
 } from '@/lib/plantation-registration'
+import { requireAdminMember } from '@/lib/auth-member'
 import { withDatabase } from '@/lib/db'
-
-const memberId = '00000000-0000-4000-8000-000000000020'
 
 const registrationSchema = z.object({
   programName: z.string().trim().min(2),
@@ -44,6 +43,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
   const input = parsed.data
 
   const site = await withDatabase(async (client) => {
+    const member = await requireAdminMember(client)
     const program = await createPlantationProgram(client, {
       organizationId: randomUUID(),
       name: input.programName,
@@ -64,7 +64,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
       plantedCount: input.plantedCount,
       plantingDate: input.plantingDate,
       speciesNotes: input.speciesNotes || null,
-      createdByMemberId: memberId,
+      createdByMemberId: member.id,
     })
   })
 
@@ -79,12 +79,14 @@ export async function confirmSiteCounts(formData: FormData): Promise<void> {
     redirect('/admin?error=confirm')
   }
 
-  await withDatabase((client) =>
-    confirmPlantationCounts(client, {
+  await withDatabase(async (client) => {
+    await requireAdminMember(client)
+
+    return confirmPlantationCounts(client, {
       siteId: parsed.data.siteId,
       monitoringStart: parsed.data.monitoringStart,
-    }),
-  )
+    })
+  })
 
   revalidatePath('/admin')
   revalidatePath(`/admin/sites/${parsed.data.siteId}`)
