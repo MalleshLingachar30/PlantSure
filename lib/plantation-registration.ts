@@ -382,7 +382,11 @@ async function insertGeneratedWindowEvents(tx: TransactionClient, windows: Audit
             and sequence_number = $${offset + 2}
         ),
         'generated',
-        jsonb_build_object('sequenceNumber', $${offset + 2}, 'dueDate', $${offset + 3}, 'graceUntil', $${offset + 4}),
+        jsonb_build_object(
+          'sequenceNumber', $${offset + 2}::integer,
+          'dueDate', $${offset + 3}::text,
+          'graceUntil', $${offset + 4}::text
+        ),
         'system'
       )`
     })
