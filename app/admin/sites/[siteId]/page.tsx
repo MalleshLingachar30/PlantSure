@@ -52,6 +52,18 @@ export default async function AdminSitePage({
               <Metric label="Records" value={site.generatedEventsCount.toString()} />
             </dl>
           </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href={`/admin/sites/${site.id}/board`} className="command-button">
+              Board
+            </Link>
+            <Link
+              href={`/p/${site.locationId}`}
+              className="inline-flex min-h-[42px] items-center px-2 text-[14px] underline-offset-4 hover:underline"
+              style={{ color: 'var(--ink-soft)' }}
+            >
+              Public page
+            </Link>
+          </div>
         </header>
 
         {confirmed && (
