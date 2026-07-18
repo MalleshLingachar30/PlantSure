@@ -1,6 +1,6 @@
 export function siteUrl(path = ''): string {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://plantsure.feedbacknfc.com'
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://plantsure-kappa.vercel.app'
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
 
   return new URL(normalizedPath, baseUrl).toString()

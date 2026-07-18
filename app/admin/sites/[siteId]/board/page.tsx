@@ -25,7 +25,8 @@ export default async function BoardPage({
     notFound()
   }
 
-  const publicUrl = siteUrl(`/p/${site.locationId}`)
+  const publicPath = `/p/${site.locationId}`
+  const publicUrl = siteUrl(publicPath)
   const qrDataUrl = await QRCode.toDataURL(publicUrl, {
     margin: 1,
     width: 360,
@@ -102,10 +103,10 @@ export default async function BoardPage({
               <ArrowLeft size={16} aria-hidden="true" />
               <span>Back to site detail</span>
             </Link>
-            <a className="command-button text-center" href={publicUrl}>
+            <Link className="command-button text-center" href={publicPath}>
               <ExternalLink size={16} aria-hidden="true" />
               <span>Open public page</span>
-            </a>
+            </Link>
             <PrintButton />
           </div>
         </aside>
