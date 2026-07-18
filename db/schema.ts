@@ -93,6 +93,11 @@ export const plantationPrograms = pgTable('plantation_programs', {
   survivalThreshold: numeric('survival_threshold', { precision: 5, scale: 2 }).default('85').notNull(),
   escalationEmail: text('escalation_email').notNull(),
   status: programStatusEnum('status').default('active').notNull(),
+  ...timestamps,
+})
+
+export const plantationLocationSequences = pgTable('plantation_location_sequences', {
+  prefix: text('prefix').primaryKey(),
   nextLocationSequence: integer('next_location_sequence').default(1).notNull(),
   ...timestamps,
 })

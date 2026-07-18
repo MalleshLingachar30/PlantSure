@@ -124,12 +124,13 @@ test('buildAuditWindows creates the five-year quarterly schedule from the monito
   assert.equal(windows.at(-1)?.dueDate, '2031-07-15')
 })
 
-test('site registration allocates Location IDs from the database sequence', async () => {
+test('site registration allocates Location IDs from the global prefix sequence', async () => {
   await withMigratedDatabase(async ({ client }) => {
-    const programId = await createProgram(client)
+    const firstProgramId = await createProgram(client)
+    const secondProgramId = await createProgram(client)
 
     const first = await createPlantationSite(client, {
-      programId,
+      programId: firstProgramId,
       stateCode: 'ka',
       districtCode: 'tmk',
       villageCode: 'gub',
@@ -144,7 +145,7 @@ test('site registration allocates Location IDs from the database sequence', asyn
       createdByMemberId: memberId,
     })
     const second = await createPlantationSite(client, {
-      programId,
+      programId: secondProgramId,
       stateCode: 'KA',
       districtCode: 'TMK',
       villageCode: 'GUB',
@@ -164,8 +165,8 @@ test('site registration allocates Location IDs from the database sequence', asyn
     assert.equal(second.locationId, 'KA-TMK-GUB-000002')
 
     const sequence = await client.query<{ next_location_sequence: number }>(
-      `select next_location_sequence from plantation_programs where id = $1`,
-      [programId],
+      `select next_location_sequence from plantation_location_sequences where prefix = $1`,
+      ['KA-TMK-GUB'],
     )
     assert.equal(sequence.rows[0]?.next_location_sequence, 3)
   })
@@ -173,7 +174,12 @@ test('site registration allocates Location IDs from the database sequence', asyn
 
 test('concurrent site registrations allocate unique Location IDs', async () => {
   await withMigratedDatabase(async ({ client, schemaName }) => {
-    const programId = await createProgram(client)
+    const programIds: string[] = []
+
+    for (let index = 0; index < 5; index += 1) {
+      programIds.push(await createProgram(client))
+    }
+
     const clients = await Promise.all(
       Array.from({ length: 5 }, async () => {
         const connection = new Client({ connectionString: process.env.TEST_DATABASE_URL })
@@ -189,7 +195,7 @@ test('concurrent site registrations allocate unique Location IDs', async () => {
       const sites = await Promise.all(
         clients.map((connection, index) =>
           createPlantationSite(connection, {
-            programId,
+            programId: programIds[index],
             stateCode: 'KA',
             districtCode: 'TMK',
             villageCode: 'GUB',

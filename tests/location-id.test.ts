@@ -21,7 +21,7 @@ test('increments Location ID sequences without skipping or reusing numbers', () 
   assert.throws(() => nextLocationSequence(999999), /sequence exhausted/)
 })
 
-test('generates unique Location IDs for a locked per-program sequence range', () => {
+test('generates unique Location IDs for a locked prefix sequence range', () => {
   const ids = buildLocationIds(
     {
       stateCode: 'KA',

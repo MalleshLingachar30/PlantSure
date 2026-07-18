@@ -178,7 +178,7 @@ created_at   timestamptz
 Format: `{STATE}-{DISTRICT}-{VILLAGE}-{SEQ}` → `KA-TMK-GUB-000123`
 
 - 3-letter codes, uppercase, from a seeded Karnataka district/taluk table
-- `SEQ` is a 6-digit zero-padded per-program sequence
+- `SEQ` is a 6-digit zero-padded sequence for the location-code prefix
 - Generated **server-side only**, inside the transaction that creates the site
 - Immutable once assigned. No edit path. Ever.
 - Use a Postgres sequence or `SELECT ... FOR UPDATE` — not `count(*) + 1`

@@ -204,23 +204,25 @@ test('Postgres keeps window events append-only', async () => {
   })
 })
 
-test('Postgres allocates Location IDs atomically from the program row sequence', async () => {
+test('Postgres allocates Location IDs atomically from the global prefix sequence', async () => {
   await withMigratedDatabase(async ({ client }) => {
-    const programId = '00000000-0000-4000-8000-000000000301'
+    const firstProgramId = '00000000-0000-4000-8000-000000000301'
+    const secondProgramId = '00000000-0000-4000-8000-000000000302'
 
-    await insertProgram(client, programId)
+    await insertProgram(client, firstProgramId)
+    await insertProgram(client, secondProgramId)
 
     const first = await client.query<{ location_id: string }>(
       `select allocate_plantation_location_id($1, 'ka', 'tmk', 'gub') as location_id`,
-      [programId],
+      [firstProgramId],
     )
     const second = await client.query<{ location_id: string }>(
       `select allocate_plantation_location_id($1, 'KA', 'TMK', 'GUB') as location_id`,
-      [programId],
+      [secondProgramId],
     )
     const sequence = await client.query<{ next_location_sequence: number }>(
-      `select next_location_sequence from plantation_programs where id = $1`,
-      [programId],
+      `select next_location_sequence from plantation_location_sequences where prefix = $1`,
+      ['KA-TMK-GUB'],
     )
 
     assert.equal(first.rows[0]?.location_id, 'KA-TMK-GUB-000001')
