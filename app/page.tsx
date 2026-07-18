@@ -9,12 +9,23 @@ export default function HomePage() {
     <main className="mx-auto max-w-[1080px] px-6 py-10 sm:py-14">
       <header className="border-b pb-7" style={{ borderColor: 'var(--rule)' }}>
         <p className="eyebrow">PlantSure</p>
-        <h1 className="page-title mt-3">Product scaffold</h1>
+        <h1 className="page-title mt-3">Plantation monitoring</h1>
         <p className="body-copy mt-3 max-w-[62ch]">
-          The build contract is still missing locally. This scaffold sets up the
-          app shell and shared timeline package without inventing schema or cron
-          behaviour.
+          Register a planted site, confirm the count once, and turn the five-year
+          maintenance promise into dated checks.
         </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/admin" className="command-button">
+            Open registration
+          </Link>
+          <Link
+            href="/plantsure/timeline"
+            className="inline-flex min-h-[42px] items-center px-2 text-[14px] underline-offset-4 hover:underline"
+            style={{ color: 'var(--ink-soft)' }}
+          >
+            View timeline
+          </Link>
+        </div>
       </header>
 
       <section className="py-9" aria-labelledby="timeline-heading">
@@ -25,13 +36,6 @@ export default function HomePage() {
               Visit timeline
             </h2>
           </div>
-          <Link
-            href="/plantsure/timeline"
-            className="text-[14px] underline-offset-4 hover:underline"
-            style={{ color: 'var(--ink-soft)' }}
-          >
-            Open scratch page
-          </Link>
         </div>
 
         <VisitTimeline

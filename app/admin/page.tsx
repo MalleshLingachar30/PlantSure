@@ -1,0 +1,235 @@
+import Link from 'next/link'
+import { registerPilotSite } from './actions'
+import { getAdminOverview } from '@/lib/admin-data'
+
+export const dynamic = 'force-dynamic'
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const [{ error }, overview] = await Promise.all([searchParams, getAdminOverview()])
+
+  return (
+    <main className="min-h-screen">
+      <div className="mx-auto grid max-w-[1180px] gap-8 px-5 py-6 sm:px-6 lg:grid-cols-[360px_1fr] lg:py-8">
+        <aside className="lg:sticky lg:top-8 lg:self-start">
+          <div className="border-b pb-5" style={{ borderColor: 'var(--rule)' }}>
+            <Link href="/" className="eyebrow hover:underline">
+              PlantSure
+            </Link>
+            <h1 className="page-title mt-3">Site registration</h1>
+            <p className="body-copy mt-3">
+              Register a planted site, lock counts, then generate the five-year check
+              schedule.
+            </p>
+          </div>
+
+          <dl className="mt-6 grid grid-cols-3 gap-3">
+            <Metric label="Sites" value={overview.sites.length.toString()} />
+            <Metric
+              label="Locked"
+              value={overview.sites
+                .filter((site) => site.status === 'counts_confirmed')
+                .length.toString()}
+            />
+            <Metric
+              label="Windows"
+              value={overview.sites
+                .reduce((total, site) => total + site.windowsCount, 0)
+                .toString()}
+            />
+          </dl>
+        </aside>
+
+        <div className="grid gap-7">
+          {!overview.configured && <DatabaseSetup />}
+          {error && <ErrorNotice />}
+
+          <section className="admin-panel" aria-labelledby="register-heading">
+            <div className="admin-panel-header">
+              <div>
+                <p className="eyebrow">New site</p>
+                <h2 id="register-heading" className="section-title mt-1">
+                  Register planted counts
+                </h2>
+              </div>
+            </div>
+
+            <form action={registerPilotSite} className="grid gap-7 p-5 sm:p-6">
+              <fieldset className="form-grid" disabled={!overview.configured}>
+                <legend className="form-legend">Programme</legend>
+                <TextField
+                  label="Programme name"
+                  name="programName"
+                  defaultValue="Sindhi Seva Samaj 2026"
+                  required
+                />
+                <TextField
+                  label="Escalation email"
+                  name="escalationEmail"
+                  type="email"
+                  defaultValue="ml@feedbacknfc.com"
+                  required
+                />
+              </fieldset>
+
+              <fieldset className="form-grid" disabled={!overview.configured}>
+                <legend className="form-legend">Site</legend>
+                <TextField label="Site name" name="siteName" defaultValue="Bangalore pilot" required />
+                <TextField label="District" name="district" defaultValue="Bengaluru Rural" required />
+                <TextField label="Taluk" name="taluk" defaultValue="Devanahalli" required />
+                <TextField label="Village" name="village" defaultValue="Gubbi" required />
+                <TextField label="District code" name="districtCode" defaultValue="BNR" maxLength={3} required />
+                <TextField label="Village code" name="villageCode" defaultValue="GUB" maxLength={3} required />
+              </fieldset>
+
+              <fieldset className="form-grid" disabled={!overview.configured}>
+                <legend className="form-legend">Baseline</legend>
+                <TextField label="Latitude" name="latitude" defaultValue="13.312000" inputMode="decimal" required />
+                <TextField label="Longitude" name="longitude" defaultValue="76.941000" inputMode="decimal" required />
+                <TextField
+                  label="Planted count"
+                  name="plantedCount"
+                  type="number"
+                  min={1}
+                  defaultValue="600"
+                  required
+                />
+                <TextField label="Planting date" name="plantingDate" type="date" defaultValue="2026-07-15" required />
+                <label className="field sm:col-span-2">
+                  <span>Species notes</span>
+                  <textarea
+                    name="speciesNotes"
+                    rows={3}
+                    className="input resize-none"
+                    defaultValue="Mixed native"
+                  />
+                </label>
+              </fieldset>
+
+              <div className="flex justify-end border-t pt-5" style={{ borderColor: 'var(--rule)' }}>
+                <button className="command-button" type="submit" disabled={!overview.configured}>
+                  Register site
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section className="admin-panel" aria-labelledby="sites-heading">
+            <div className="admin-panel-header">
+              <div>
+                <p className="eyebrow">Current sites</p>
+                <h2 id="sites-heading" className="section-title mt-1">
+                  Registered baselines
+                </h2>
+              </div>
+            </div>
+
+            {overview.sites.length > 0 ? (
+              <div className="divide-y" style={{ borderColor: 'var(--rule)' }}>
+                {overview.sites.map((site) => (
+                  <Link key={site.id} href={`/admin/sites/${site.id}`} className="site-row">
+                    <span className="site-id">{site.locationId}</span>
+                    <span>
+                      <span className="block font-medium">{site.name}</span>
+                      <span className="body-copy text-[13px]">
+                        {site.village}, {site.taluk} · {site.plantedCount.toLocaleString()} planted
+                      </span>
+                    </span>
+                    <StatusLabel status={site.status} windowsCount={site.windowsCount} />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="body-copy p-5 sm:p-6">No sites registered.</p>
+            )}
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-t pt-3" style={{ borderColor: 'var(--rule)' }}>
+      <dt className="eyebrow">{label}</dt>
+      <dd className="big-number mt-1 text-[24px]">{value}</dd>
+    </div>
+  )
+}
+
+function DatabaseSetup() {
+  return (
+    <div className="admin-notice" role="status">
+      <p className="eyebrow">Database</p>
+      <p className="mt-2 font-medium">DATABASE_URL is not set.</p>
+      <p className="body-copy mt-1 text-[14px]">
+        Registration writes are disabled until the app is pointed at Postgres.
+      </p>
+    </div>
+  )
+}
+
+function ErrorNotice() {
+  return (
+    <div className="admin-notice" role="alert">
+      <p className="eyebrow">Not saved</p>
+      <p className="mt-2 font-medium">Check the required fields and try again.</p>
+    </div>
+  )
+}
+
+function TextField({
+  label,
+  name,
+  type = 'text',
+  defaultValue,
+  required,
+  inputMode,
+  maxLength,
+  min,
+}: {
+  label: string
+  name: string
+  type?: string
+  defaultValue?: string
+  required?: boolean
+  inputMode?: 'decimal' | 'numeric'
+  maxLength?: number
+  min?: number
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        className="input"
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        required={required}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        min={min}
+      />
+    </label>
+  )
+}
+
+function StatusLabel({
+  status,
+  windowsCount,
+}: {
+  status: string
+  windowsCount: number
+}) {
+  const locked = status === 'counts_confirmed'
+
+  return (
+    <span className="justify-self-start text-[13px] sm:justify-self-end" style={{ color: locked ? 'var(--alive)' : 'var(--ink-soft)' }}>
+      {locked ? `${windowsCount} checks created` : 'Counts open'}
+    </span>
+  )
+}
