@@ -15,6 +15,7 @@ const memberId = '00000000-0000-4000-8000-000000000020'
 
 type MigratedDatabase = {
   client: Client
+  schemaName: string
 }
 
 async function withMigratedDatabase(run: (database: MigratedDatabase) => Promise<void>): Promise<void> {
@@ -33,8 +34,10 @@ async function withMigratedDatabase(run: (database: MigratedDatabase) => Promise
   try {
     await client.query(`create schema ${schemaIdentifier}`)
     await client.query(`set search_path to ${schemaIdentifier}`)
+    await client.query(`set statement_timeout to '15s'`)
+    await client.query(`set lock_timeout to '5s'`)
     await client.query(await migrationSqlForSchema(schemaName))
-    await run({ client })
+    await run({ client, schemaName })
   } finally {
     await client.query(`drop schema if exists ${schemaIdentifier} cascade`)
     await client.end()
@@ -150,21 +153,20 @@ test('site registration allocates Location IDs from the database sequence', asyn
 })
 
 test('concurrent site registrations allocate unique Location IDs', async () => {
-  await withMigratedDatabase(async ({ client }) => {
+  await withMigratedDatabase(async ({ client, schemaName }) => {
     const programId = await createProgram(client)
     const clients = await Promise.all(
       Array.from({ length: 5 }, async () => {
         const connection = new Client({ connectionString: process.env.TEST_DATABASE_URL })
         await connection.connect()
-        await connection.query(`set search_path to current_schema()`)
+        await connection.query(`set search_path to ${quoteIdentifier(schemaName)}`)
+        await connection.query(`set statement_timeout to '15s'`)
+        await connection.query(`set lock_timeout to '5s'`)
         return connection
       }),
     )
 
     try {
-      const schema = await client.query<{ current_schema: string }>(`select current_schema()`)
-      await Promise.all(clients.map((connection) => connection.query(`set search_path to ${quoteIdentifier(schema.rows[0].current_schema)}`)))
-
       const sites = await Promise.all(
         clients.map((connection, index) =>
           createPlantationSite(connection, {
