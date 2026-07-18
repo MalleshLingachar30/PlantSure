@@ -26,11 +26,13 @@ npm run dev
 npm run check
 ```
 
-## Current blocker
+## Product specs
 
-`plantsure-phase1-build.md` is not present in this checkout. Do not implement
-schema, cron, lifecycle, or confirm-counts logic until that build contract is
-available.
+Read these in order:
+
+1. `plantsure-phase1-build.md`
+2. `plantsure-frontend-spec.md`
+3. `plantsure-mockup.html`
 
 ## Stack
 
