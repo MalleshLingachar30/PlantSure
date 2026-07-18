@@ -20,6 +20,20 @@ npm run dev
 npm run check
 ```
 
+`npm run check` includes `npm run test:postgres`. Set `TEST_DATABASE_URL` to a
+real Postgres database before running it; the migration invariant tests create
+and drop an isolated temporary schema. Do not replace this with PGlite or a mock:
+the baseline lock and append-only register are database trigger behavior.
+
+For quick local iteration without Postgres:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run build
+```
+
 ## Product specs
 
 Read these in order:

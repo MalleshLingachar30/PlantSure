@@ -173,4 +173,56 @@ $$;--> statement-breakpoint
 CREATE TRIGGER plantation_window_events_append_only
 BEFORE UPDATE OR DELETE ON plantation_window_events
 FOR EACH ROW
-EXECUTE FUNCTION prevent_window_event_mutation();
+EXECUTE FUNCTION prevent_window_event_mutation();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION allocate_plantation_location_id(
+	target_program_id uuid,
+	state_code text,
+	district_code text,
+	village_code text
+)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	allocated_sequence integer;
+	normalized_state text := upper(trim(state_code));
+	normalized_district text := upper(trim(district_code));
+	normalized_village text := upper(trim(village_code));
+BEGIN
+	IF normalized_state !~ '^[A-Z]{2}$' THEN
+		RAISE EXCEPTION 'state_code must be a two-letter uppercase code'
+			USING ERRCODE = 'check_violation';
+	END IF;
+
+	IF normalized_district !~ '^[A-Z]{3}$' THEN
+		RAISE EXCEPTION 'district_code must be a three-letter uppercase code'
+			USING ERRCODE = 'check_violation';
+	END IF;
+
+	IF normalized_village !~ '^[A-Z]{3}$' THEN
+		RAISE EXCEPTION 'village_code must be a three-letter uppercase code'
+			USING ERRCODE = 'check_violation';
+	END IF;
+
+	UPDATE plantation_programs
+	SET
+		next_location_sequence = next_location_sequence + 1,
+		updated_at = now()
+	WHERE id = target_program_id
+		AND next_location_sequence BETWEEN 1 AND 999999
+	RETURNING next_location_sequence - 1 INTO allocated_sequence;
+
+	IF allocated_sequence IS NULL THEN
+		RAISE EXCEPTION 'Location ID sequence exhausted or program not found'
+			USING ERRCODE = 'check_violation';
+	END IF;
+
+	RETURN normalized_state
+		|| '-'
+		|| normalized_district
+		|| '-'
+		|| normalized_village
+		|| '-'
+		|| lpad(allocated_sequence::text, 6, '0');
+END;
+$$;
