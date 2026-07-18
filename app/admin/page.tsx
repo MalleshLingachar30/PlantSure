@@ -10,6 +10,7 @@ export default async function AdminPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const [{ error }, overview] = await Promise.all([searchParams, getAdminOverview()])
+  const formDisabled = !overview.configured
 
   return (
     <main className="min-h-screen">
@@ -58,12 +59,13 @@ export default async function AdminPage({
             </div>
 
             <form action={registerPilotSite} className="grid gap-7 p-5 sm:p-6">
-              <fieldset className="form-grid" disabled={!overview.configured}>
+              <fieldset className="form-grid" disabled={formDisabled}>
                 <legend className="form-legend">Programme</legend>
                 <TextField
                   label="Programme name"
                   name="programName"
                   defaultValue="Sindhi Seva Samaj 2026"
+                  disabled={formDisabled}
                   required
                 />
                 <TextField
@@ -71,33 +73,35 @@ export default async function AdminPage({
                   name="escalationEmail"
                   type="email"
                   defaultValue="ml@feedbacknfc.com"
+                  disabled={formDisabled}
                   required
                 />
               </fieldset>
 
-              <fieldset className="form-grid" disabled={!overview.configured}>
+              <fieldset className="form-grid" disabled={formDisabled}>
                 <legend className="form-legend">Site</legend>
-                <TextField label="Site name" name="siteName" defaultValue="Bangalore pilot" required />
-                <TextField label="District" name="district" defaultValue="Bengaluru Rural" required />
-                <TextField label="Taluk" name="taluk" defaultValue="Devanahalli" required />
-                <TextField label="Village" name="village" defaultValue="Gubbi" required />
-                <TextField label="District code" name="districtCode" defaultValue="BNR" maxLength={3} required />
-                <TextField label="Village code" name="villageCode" defaultValue="GUB" maxLength={3} required />
+                <TextField label="Site name" name="siteName" defaultValue="Bangalore pilot" disabled={formDisabled} required />
+                <TextField label="District" name="district" defaultValue="Bengaluru Rural" disabled={formDisabled} required />
+                <TextField label="Taluk" name="taluk" defaultValue="Devanahalli" disabled={formDisabled} required />
+                <TextField label="Village" name="village" defaultValue="Gubbi" disabled={formDisabled} required />
+                <TextField label="District code" name="districtCode" defaultValue="BNR" maxLength={3} disabled={formDisabled} required />
+                <TextField label="Village code" name="villageCode" defaultValue="GUB" maxLength={3} disabled={formDisabled} required />
               </fieldset>
 
-              <fieldset className="form-grid" disabled={!overview.configured}>
+              <fieldset className="form-grid" disabled={formDisabled}>
                 <legend className="form-legend">Baseline</legend>
-                <TextField label="Latitude" name="latitude" defaultValue="13.312000" inputMode="decimal" required />
-                <TextField label="Longitude" name="longitude" defaultValue="76.941000" inputMode="decimal" required />
+                <TextField label="Latitude" name="latitude" defaultValue="13.312000" inputMode="decimal" disabled={formDisabled} required />
+                <TextField label="Longitude" name="longitude" defaultValue="76.941000" inputMode="decimal" disabled={formDisabled} required />
                 <TextField
                   label="Planted count"
                   name="plantedCount"
                   type="number"
                   min={1}
                   defaultValue="600"
+                  disabled={formDisabled}
                   required
                 />
-                <TextField label="Planting date" name="plantingDate" type="date" defaultValue="2026-07-15" required />
+                <TextField label="Planting date" name="plantingDate" type="date" defaultValue="2026-07-15" disabled={formDisabled} required />
                 <label className="field sm:col-span-2">
                   <span>Species notes</span>
                   <textarea
@@ -105,12 +109,13 @@ export default async function AdminPage({
                     rows={3}
                     className="input resize-none"
                     defaultValue="Mixed native"
+                    disabled={formDisabled}
                   />
                 </label>
               </fieldset>
 
               <div className="flex justify-end border-t pt-5" style={{ borderColor: 'var(--rule)' }}>
-                <button className="command-button" type="submit" disabled={!overview.configured}>
+                <button className="command-button" type="submit" disabled={formDisabled}>
                   Register site
                 </button>
               </div>
@@ -191,6 +196,7 @@ function TextField({
   inputMode,
   maxLength,
   min,
+  disabled,
 }: {
   label: string
   name: string
@@ -200,6 +206,7 @@ function TextField({
   inputMode?: 'decimal' | 'numeric'
   maxLength?: number
   min?: number
+  disabled?: boolean
 }) {
   return (
     <label className="field">
@@ -213,6 +220,7 @@ function TextField({
         inputMode={inputMode}
         maxLength={maxLength}
         min={min}
+        disabled={disabled}
       />
     </label>
   )
