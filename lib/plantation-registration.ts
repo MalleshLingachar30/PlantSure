@@ -73,8 +73,8 @@ type ProgramForWindows = {
 type SiteForConfirmation = {
   id: string
   status: string
-  monitoring_start: string | null
-  monitoring_end: string | null
+  monitoring_start: Date | string | null
+  monitoring_end: Date | string | null
   program_id: string
 }
 
@@ -249,8 +249,8 @@ export async function confirmPlantationCounts(
       return {
         siteId: site.id,
         status: 'counts_confirmed',
-        monitoringStart: site.monitoring_start,
-        monitoringEnd: site.monitoring_end,
+        monitoringStart: dateString(site.monitoring_start),
+        monitoringEnd: dateString(site.monitoring_end),
         windowsCreated: 0,
         alreadyConfirmed: true,
       }
@@ -455,6 +455,14 @@ function parseDate(dateString: string): [number, number, number] {
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+function dateString(value: Date | string): string {
+  if (value instanceof Date) {
+    return formatDate(value)
+  }
+
+  return value
 }
 
 async function transaction<TResult>(

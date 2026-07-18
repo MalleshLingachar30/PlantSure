@@ -236,8 +236,8 @@ test('confirm counts locks the site and creates twenty windows with generated ev
     const windows = await client.query<{
       sequence_number: number
       cycle_label: string
-      due_date: string
-      grace_until: string
+      due_date: Date | string
+      grace_until: Date | string
     }>(
       `
         select sequence_number, cycle_label, due_date, grace_until
@@ -260,8 +260,8 @@ test('confirm counts locks the site and creates twenty windows with generated ev
     assert.equal(dateValue(site.rows[0]?.monitoring_end), '2031-07-15')
     assert.equal(windows.rows.length, 20)
     assert.equal(windows.rows[0]?.cycle_label, 'Y1-Q1')
-    assert.equal(windows.rows[0]?.due_date, '2026-10-15')
-    assert.equal(windows.rows[0]?.grace_until, '2026-10-29')
+    assert.equal(dateValue(windows.rows[0]?.due_date), '2026-10-15')
+    assert.equal(dateValue(windows.rows[0]?.grace_until), '2026-10-29')
     assert.equal(windows.rows.at(-1)?.cycle_label, 'Y5-Q4')
     assert.equal(events.rows[0]?.count, '20')
 
