@@ -98,6 +98,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         left join plantation_window_events events
           on events.window_id = windows.id
           and events.event_type = 'generated'
+        where programs.is_demo = false
         group by sites.id, programs.name
         order by sites.created_at desc
         limit 20
@@ -176,6 +177,7 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
           on events.window_id = windows.id
           and events.event_type = 'generated'
         where sites.id = $1
+          and programs.is_demo = false
         group by sites.id, programs.name
       `,
       [siteId],

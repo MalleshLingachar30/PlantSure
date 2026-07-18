@@ -267,9 +267,12 @@ test('confirm counts locks the site and creates twenty windows with generated ev
     const events = await client.query<{ count: string }>(
       `
         select count(*)::text
-        from plantation_window_events
-        where event_type = 'generated'
+        from plantation_window_events events
+        join plantation_audit_windows windows on windows.id = events.window_id
+        where windows.site_id = $1
+          and events.event_type = 'generated'
       `,
+      [siteId],
     )
 
     assert.equal(site.rows[0]?.status, 'counts_confirmed')
@@ -307,7 +310,13 @@ test('confirm counts is idempotent and does not create duplicate windows', async
       [siteId],
     )
     const events = await client.query<{ count: string }>(
-      `select count(*)::text from plantation_window_events`,
+      `
+        select count(*)::text
+        from plantation_window_events events
+        join plantation_audit_windows windows on windows.id = events.window_id
+        where windows.site_id = $1
+      `,
+      [siteId],
     )
 
     assert.equal(second.alreadyConfirmed, true)

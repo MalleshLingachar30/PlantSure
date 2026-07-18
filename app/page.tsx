@@ -5,6 +5,7 @@ import {
   plantSureStorySequence,
 } from '@/components/visit-timeline'
 
+const demoLocationId = 'KA-DMO-GUB-000001'
 const allCheckedSequence = Array.from({ length: 20 }, () => 'done' as const)
 
 export default function HomePage() {
@@ -15,7 +16,7 @@ export default function HomePage() {
         <Hero />
         <Problem />
         <HowItWorks />
-        <PlatformEntry />
+        <WorkflowEntry />
         <TheRecord />
         <Audiences />
         <Partners />
@@ -58,14 +59,17 @@ function Header() {
             How it works
           </a>
           <Link
-            href="/p/KA-BNR-GUB-000002"
+            href={`/p/${demoLocationId}`}
             className="hidden text-[13.5px] underline-offset-4 hover:underline sm:inline"
             style={{ color: 'var(--ink-soft)' }}
           >
-            Public record
+            View a record
           </Link>
-          <Link href="/admin" className="command-button min-h-[34px] px-3 py-1.5 text-[13px]">
-            Open platform
+          <Link
+            href="/admin"
+            className="command-button min-h-[34px] px-3 py-1.5 text-[13px]"
+          >
+            Register a site
           </Link>
         </nav>
       </div>
@@ -104,16 +108,16 @@ function Hero() {
           style={{ background: 'var(--card)', borderColor: 'var(--rule)' }}
         >
           <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-            <span className="mono text-[13px]">KA-BNR-GUB-000002</span>
-            <span className="eyebrow">Live platform record</span>
+            <span className="mono text-[13px]">{demoLocationId}</span>
+            <span className="eyebrow">Seeded demo record</span>
           </figcaption>
           <p className="mb-7 text-[14px]" style={{ color: 'var(--ink-faint)' }}>
-            600 plants · Gubbi, Bengaluru Rural · monitored to 2031
+            600 plants · Gubbi demonstration site · monitored to 2026
           </p>
 
           <VisitTimeline
             sequence={plantSureStorySequence}
-            caption="Twenty checks are scheduled over five years. Nine happened in this story. The other eleven are not missing from the record; they are marked as the days nobody came."
+            caption="This seeded demo shows what an unattended five-year record looks like: nine recorded checks and eleven missed windows that stay visible."
           />
         </figure>
       </Reveal>
@@ -124,11 +128,11 @@ function Hero() {
             Register a site
           </Link>
           <Link
-            href="/p/KA-BNR-GUB-000002"
+            href={`/p/${demoLocationId}`}
             className="text-[15px] underline-offset-4 hover:underline"
             style={{ color: 'var(--ink-soft)' }}
           >
-            View sample public record
+            View demo record
           </Link>
         </div>
       </Reveal>
@@ -282,12 +286,12 @@ function HowItWorks() {
   )
 }
 
-function PlatformEntry() {
+function WorkflowEntry() {
   const entries = [
     {
       label: 'Admin',
       title: 'Onboard plantation sites',
-      copy: 'Create local member rows, register a site, capture planted count, location, species, and monitoring dates.',
+      copy: 'Add your team, register a site, capture planted count, location, species, and monitoring dates.',
       href: '/admin',
       action: 'Open admin',
     },
@@ -302,8 +306,8 @@ function PlatformEntry() {
       label: 'Public',
       title: 'Show the live record',
       copy: 'A QR scan opens the public page for the Location ID, backed by the same production database.',
-      href: '/p/KA-BNR-GUB-000002',
-      action: 'View sample',
+      href: `/p/${demoLocationId}`,
+      action: 'View demo',
     },
   ]
 
@@ -314,17 +318,17 @@ function PlatformEntry() {
     >
       <div className="mx-auto max-w-[1080px] px-6 py-20 sm:py-24">
         <Reveal>
-          <p className="eyebrow">Integrated platform</p>
+          <p className="eyebrow">Connected workflow</p>
           <h2 className="serif mt-4 max-w-[24ch] text-[28px] font-normal leading-[1.25] sm:text-[34px]">
-            The landing page now points into the working product.
+            The public story now points into the working product.
           </h2>
           <p
             className="mt-5 max-w-[58ch] text-[16px] leading-[1.65]"
             style={{ color: 'var(--ink-soft)' }}
           >
-            The public story, admin onboarding, printed board, and QR record are
-            part of one flow. The marketing page is no longer detached from the
-            live PlantSure application.
+            The public story, admin onboarding, printed board, and QR record
+            are part of one flow. Visitors see the same kind of record that the
+            field team creates.
           </p>
         </Reveal>
 
@@ -521,7 +525,7 @@ function Partners() {
               style={{ color: 'var(--ink-soft)' }}
             >
               Sampling standards, health classification, and species benchmarks
-              can be versioned in the platform so survival figures remain
+              can be versioned in PlantSure so survival figures remain
               defensible years later.
             </p>
           </div>
@@ -564,7 +568,7 @@ function Enquiry() {
               className="mt-6 max-w-[50ch] text-[16px] leading-[1.65]"
               style={{ color: 'var(--ink-soft)' }}
             >
-              The product is already connected to production auth, Neon
+              PlantSure is already connected to production auth, Neon
               Postgres, board printing, and public QR pages. The best next move
               is to register representative sites and validate the field
               workflow with actual users.
@@ -573,8 +577,8 @@ function Enquiry() {
               <Link href="/admin" className="command-button">
                 Open admin
               </Link>
-              <Link href="/plantsure/timeline" className="secondary-button">
-                View timeline demo
+              <Link href={`/p/${demoLocationId}`} className="secondary-button">
+                View demo record
               </Link>
             </div>
           </div>

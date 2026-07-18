@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   date,
+  boolean,
   index,
   integer,
   jsonb,
@@ -92,6 +93,7 @@ export const plantationPrograms = pgTable('plantation_programs', {
   auditFrequency: auditFrequencyEnum('audit_frequency').default('quarterly').notNull(),
   survivalThreshold: numeric('survival_threshold', { precision: 5, scale: 2 }).default('85').notNull(),
   escalationEmail: text('escalation_email').notNull(),
+  isDemo: boolean('is_demo').default(false).notNull(),
   status: programStatusEnum('status').default('active').notNull(),
   ...timestamps,
 })

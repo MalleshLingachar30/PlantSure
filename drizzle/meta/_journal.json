@@ -29,6 +29,13 @@
       "when": 1784362310228,
       "tag": "0003_cool_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784377265487,
+      "tag": "0004_tranquil_wolf_cub",
+      "breakpoints": true
     }
   ]
 }
