@@ -1,7 +1,9 @@
 import QRCode from 'qrcode'
 import Link from 'next/link'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { PrintButton } from '@/components/print-button'
+import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 import { requireAdminMember } from '@/lib/auth-member'
 import { getAdminSiteDetail } from '@/lib/admin-data'
 import { withDatabase } from '@/lib/db'
@@ -35,7 +37,15 @@ export default async function BoardPage({
 
   return (
     <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-8">
-      <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mx-auto max-w-[1100px]">
+        <SiteWorkflowNav
+          siteId={site.id}
+          locationId={site.locationId}
+          active="board"
+        />
+      </div>
+
+      <div className="mx-auto mt-5 grid max-w-[1100px] gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="board-sheet" aria-labelledby="board-heading">
           <div className="board-brand">
             <span>PlantSure</span>
@@ -82,17 +92,19 @@ export default async function BoardPage({
         </section>
 
         <aside className="admin-rail print:hidden">
-          <Link href={`/admin/sites/${site.id}`} className="eyebrow hover:underline">
-            Site detail
-          </Link>
           <h2 className="section-title mt-3">Site board</h2>
           <p className="body-copy mt-3">
             Print this page after planting details are confirmed. The Site ID is
             deliberately large so a damaged QR does not block a visit.
           </p>
           <div className="mt-6 grid gap-3">
+            <Link className="secondary-button" href={`/admin/sites/${site.id}`}>
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span>Back to site detail</span>
+            </Link>
             <a className="command-button text-center" href={publicUrl}>
-              Open public page
+              <ExternalLink size={16} aria-hidden="true" />
+              <span>Open public page</span>
             </a>
             <PrintButton />
           </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ExternalLink, PanelTop } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { confirmSiteCounts } from '../../actions'
 import { requireAdminMember } from '@/lib/auth-member'
@@ -11,6 +12,7 @@ import {
   type VisitTimelineEntry,
   VisitTimeline,
 } from '@/components/visit-timeline'
+import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +39,12 @@ export default async function AdminSitePage({
   return (
     <main className="min-h-screen">
       <div className="mx-auto max-w-[1080px] px-5 py-6 sm:px-6 lg:py-8">
+        <SiteWorkflowNav
+          siteId={site.id}
+          locationId={site.locationId}
+          active="detail"
+        />
+
         <header className="border-b pb-5" style={{ borderColor: 'var(--rule)' }}>
           <Link href="/admin" className="eyebrow hover:underline">
             Site registration
@@ -58,14 +66,15 @@ export default async function AdminSitePage({
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href={`/admin/sites/${site.id}/board`} className="command-button">
-              Board
+              <PanelTop size={16} aria-hidden="true" />
+              <span>Open board</span>
             </Link>
             <Link
               href={`/p/${site.locationId}`}
-              className="inline-flex min-h-[42px] items-center px-2 text-[14px] underline-offset-4 hover:underline"
-              style={{ color: 'var(--ink-soft)' }}
+              className="secondary-button"
             >
-              Public page
+              <ExternalLink size={16} aria-hidden="true" />
+              <span>Open public page</span>
             </Link>
           </div>
         </header>

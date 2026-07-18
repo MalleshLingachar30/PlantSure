@@ -190,6 +190,55 @@
     gap: 0.75rem;
   }
 
+  .workflow-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1rem;
+  }
+
+  .workflow-step-wrap {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .workflow-arrow {
+    height: 14px;
+    width: 14px;
+    color: var(--ink-faint);
+  }
+
+  .workflow-step {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 0.45rem 0.65rem;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .workflow-step:hover {
+    border-color: var(--rule-strong);
+    color: var(--ink);
+  }
+
+  .workflow-step[data-active="true"] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+  }
+
   .metric-line {
     border-top: 1px solid var(--rule);
     padding-top: 0.75rem;
@@ -251,8 +300,13 @@
   }
 
   .command-button,
+  .secondary-button,
   .danger-button {
+    display: inline-flex;
     min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
     border-radius: var(--radius);
     padding: 0.625rem 0.9rem;
     font-size: 14px;
@@ -266,6 +320,12 @@
     color: var(--paper);
   }
 
+  .secondary-button {
+    border: 1px solid var(--rule-strong);
+    background: var(--card);
+    color: var(--ink-soft);
+  }
+
   .danger-button {
     border: 1px solid var(--overdue);
     background: transparent;
@@ -273,11 +333,13 @@
   }
 
   .command-button:hover,
+  .secondary-button:hover,
   .danger-button:hover {
     filter: brightness(0.95);
   }
 
   .command-button:disabled,
+  .secondary-button:disabled,
   .danger-button:disabled {
     cursor: not-allowed;
     opacity: 0.45;
