@@ -69,7 +69,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/admin')
-  redirect(`/admin/sites/${site.id}`)
+  redirect(`/sites/${site.id}`)
 }
 
 export async function confirmSiteCounts(formData: FormData): Promise<void> {
@@ -89,6 +89,6 @@ export async function confirmSiteCounts(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/admin')
-  revalidatePath(`/admin/sites/${parsed.data.siteId}`)
-  redirect(`/admin/sites/${parsed.data.siteId}?confirmed=1`)
+  revalidatePath(`/sites/${parsed.data.siteId}`)
+  redirect(`/sites/${parsed.data.siteId}?confirmed=1`)
 }

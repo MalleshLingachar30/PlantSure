@@ -19,8 +19,8 @@ export function SiteWorkflowNav({
     external?: boolean
   }> = [
     { key: 'registration', label: 'Registration', href: '/admin' },
-    { key: 'detail', label: 'Site detail', href: `/admin/sites/${siteId}` },
-    { key: 'board', label: 'Board', href: `/admin/sites/${siteId}/board` },
+    { key: 'detail', label: 'Site detail', href: `/sites/${siteId}` },
+    { key: 'board', label: 'Board', href: `/sites/${siteId}/board` },
     { key: 'public', label: 'Public page', href: `/p/${locationId}`, external: true },
   ]
 

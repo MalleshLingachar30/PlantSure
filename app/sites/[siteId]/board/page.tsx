@@ -99,7 +99,7 @@ export default async function BoardPage({
             deliberately large so a damaged QR does not block a visit.
           </p>
           <div className="mt-6 grid gap-3">
-            <Link className="secondary-button" href={`/admin/sites/${site.id}`}>
+            <Link className="secondary-button" href={`/sites/${site.id}`}>
               <ArrowLeft size={16} aria-hidden="true" />
               <span>Back to site detail</span>
             </Link>

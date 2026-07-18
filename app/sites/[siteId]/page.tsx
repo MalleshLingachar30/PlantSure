@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ExternalLink, PanelTop } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { confirmSiteCounts } from '../../actions'
+import { confirmSiteCounts } from '@/app/admin/actions'
 import { requireAdminMember } from '@/lib/auth-member'
 import {
   type AdminAuditWindow,
@@ -16,7 +16,7 @@ import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminSitePage({
+export default async function SitePage({
   params,
   searchParams,
 }: {
@@ -65,7 +65,7 @@ export default async function AdminSitePage({
             </dl>
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={`/admin/sites/${site.id}/board`} className="command-button">
+            <Link href={`/sites/${site.id}/board`} className="command-button">
               <PanelTop size={16} aria-hidden="true" />
               <span>Open board</span>
             </Link>
