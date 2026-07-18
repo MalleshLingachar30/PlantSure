@@ -54,6 +54,14 @@ function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
 }
 
+function dateValue(value: Date | string | undefined): string | undefined {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10)
+  }
+
+  return value
+}
+
 async function createProgram(client: Client): Promise<string> {
   const program = await createPlantationProgram(client, {
     organizationId: randomUUID(),
@@ -222,8 +230,8 @@ test('confirm counts locks the site and creates twenty windows with generated ev
 
     const site = await client.query<{
       status: string
-      monitoring_start: string
-      monitoring_end: string
+      monitoring_start: Date | string
+      monitoring_end: Date | string
     }>(`select status, monitoring_start, monitoring_end from plantation_sites where id = $1`, [siteId])
     const windows = await client.query<{
       sequence_number: number
@@ -248,8 +256,8 @@ test('confirm counts locks the site and creates twenty windows with generated ev
     )
 
     assert.equal(site.rows[0]?.status, 'counts_confirmed')
-    assert.equal(site.rows[0]?.monitoring_start, '2026-07-15')
-    assert.equal(site.rows[0]?.monitoring_end, '2031-07-15')
+    assert.equal(dateValue(site.rows[0]?.monitoring_start), '2026-07-15')
+    assert.equal(dateValue(site.rows[0]?.monitoring_end), '2031-07-15')
     assert.equal(windows.rows.length, 20)
     assert.equal(windows.rows[0]?.cycle_label, 'Y1-Q1')
     assert.equal(windows.rows[0]?.due_date, '2026-10-15')
