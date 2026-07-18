@@ -6,17 +6,11 @@ The product rule:
 
 > An audit that doesn't happen must produce a record, not a silence.
 
-## Workspace
+## Layout
 
-```text
-apps/web                  Next.js app for the PlantSure product
-packages/plantsure-ui     Shared PlantSure UI primitives
-plantsure-landing/        Existing deployed landing checkout, ignored here
-```
-
-The landing page is intentionally parked. Shared product UI should move through
-`@feedbacknfc/plantsure-ui`, then the app and landing page can consume the same
-timeline without two copies.
+This is a plain Next.js app at the repository root. The landing page is
+intentionally parked in its own repository; shared UI can be extracted later if
+the app and landing page need to consume the same component.
 
 ## Run
 

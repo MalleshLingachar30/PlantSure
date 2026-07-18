@@ -7,7 +7,6 @@ export default {
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
-    '../../packages/plantsure-ui/src/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

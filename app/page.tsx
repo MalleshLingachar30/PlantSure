@@ -1,5 +1,8 @@
 import Link from 'next/link'
-import { VisitTimeline, plantSureStorySequence } from '@feedbacknfc/plantsure-ui'
+import {
+  VisitTimeline,
+  plantSureStorySequence,
+} from '@/components/visit-timeline'
 
 export default function HomePage() {
   return (

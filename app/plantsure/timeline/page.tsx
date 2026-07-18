@@ -3,7 +3,7 @@ import {
   VisitTimeline,
   type VisitTimelineEntry,
   plantSureStorySequence,
-} from '@feedbacknfc/plantsure-ui'
+} from '@/components/visit-timeline'
 
 export const metadata: Metadata = {
   title: 'Visit timeline · PlantSure',
