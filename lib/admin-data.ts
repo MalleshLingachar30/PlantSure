@@ -229,7 +229,11 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
 
 function dateString(value: Date | string): string {
   if (value instanceof Date) {
-    return value.toISOString().slice(0, 10)
+    const year = value.getFullYear()
+    const month = `${value.getMonth() + 1}`.padStart(2, '0')
+    const day = `${value.getDate()}`.padStart(2, '0')
+
+    return `${year}-${month}-${day}`
   }
 
   return value

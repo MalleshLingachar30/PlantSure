@@ -10,6 +10,7 @@ dogfood-output/
 .env.*.local
 *.tsbuildinfo
 .DS_Store
+.neon
 
 # Separate deployed landing checkout. Wire it to packages/plantsure-ui later.
 plantsure-landing/

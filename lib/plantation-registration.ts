@@ -459,10 +459,18 @@ function formatDate(date: Date): string {
 
 function dateString(value: Date | string): string {
   if (value instanceof Date) {
-    return formatDate(value)
+    return formatLocalDate(value)
   }
 
   return value
+}
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 async function transaction<TResult>(
