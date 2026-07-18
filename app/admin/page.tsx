@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { registerPilotSite } from './actions'
+import { InternalShell } from '@/components/internal-shell'
 import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
 import { hasDatabaseUrl, withDatabase } from '@/lib/db'
@@ -11,18 +12,20 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
-  await requireSignedIn()
+  const member = hasDatabaseUrl()
+    ? await withDatabase(requireAdminMember)
+    : null
 
-  if (hasDatabaseUrl()) {
-    await withDatabase(requireAdminMember)
+  if (!member) {
+    await requireSignedIn()
   }
 
   const [{ error }, overview] = await Promise.all([searchParams, getAdminOverview()])
   const formDisabled = !overview.configured
 
   return (
-    <main className="min-h-screen">
-      <div className="admin-page-grid mx-auto max-w-[1180px] px-5 py-6 sm:px-6 lg:py-8">
+    <InternalShell active="register" member={member}>
+      <div className="admin-page-grid">
         <aside className="admin-rail">
           <div className="border-b pb-5" style={{ borderColor: 'var(--rule)' }}>
             <Link href="/" className="eyebrow hover:underline">
@@ -56,7 +59,7 @@ export default async function AdminPage({
           {!overview.configured && <DatabaseSetup />}
           {error && <ErrorNotice />}
 
-          <section className="admin-panel" aria-labelledby="register-heading">
+          <section id="register" className="admin-panel" aria-labelledby="register-heading">
             <div className="admin-panel-header">
               <div>
                 <p className="eyebrow">New site</p>
@@ -130,7 +133,7 @@ export default async function AdminPage({
             </form>
           </section>
 
-          <section className="admin-panel" aria-labelledby="sites-heading">
+          <section id="sites" className="admin-panel" aria-labelledby="sites-heading">
             <div className="admin-panel-header">
               <div>
                 <p className="eyebrow">Current sites</p>
@@ -161,7 +164,7 @@ export default async function AdminPage({
           </section>
         </div>
       </div>
-    </main>
+    </InternalShell>
   )
 }
 

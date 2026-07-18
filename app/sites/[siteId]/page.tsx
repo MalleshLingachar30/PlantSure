@@ -12,6 +12,7 @@ import {
   type VisitTimelineEntry,
   VisitTimeline,
 } from '@/components/visit-timeline'
+import { InternalShell } from '@/components/internal-shell'
 import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export default async function SitePage({
   searchParams: Promise<{ confirmed?: string }>
 }) {
   const [{ siteId }, { confirmed }] = await Promise.all([params, searchParams])
-  await withDatabase(requireAdminMember)
+  const member = await withDatabase(requireAdminMember)
 
   const site = await getAdminSiteDetail(siteId)
 
@@ -37,8 +38,8 @@ export default async function SitePage({
   const timeline = timelineFromWindows(site.windows)
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto max-w-[1080px] px-5 py-6 sm:px-6 lg:py-8">
+    <InternalShell active="sites" member={member}>
+      <div className="mx-auto max-w-[1080px]">
         <SiteWorkflowNav
           siteId={site.id}
           locationId={site.locationId}
@@ -214,7 +215,7 @@ export default async function SitePage({
           </section>
         )}
       </div>
-    </main>
+    </InternalShell>
   )
 }
 

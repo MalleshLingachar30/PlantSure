@@ -2,6 +2,7 @@ import QRCode from 'qrcode'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { notFound } from 'next/navigation'
+import { InternalShell } from '@/components/internal-shell'
 import { PrintButton } from '@/components/print-button'
 import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 import { requireAdminMember } from '@/lib/auth-member'
@@ -17,7 +18,7 @@ export default async function BoardPage({
   params: Promise<{ siteId: string }>
 }) {
   const { siteId } = await params
-  await withDatabase(requireAdminMember)
+  const member = await withDatabase(requireAdminMember)
 
   const site = await getAdminSiteDetail(siteId)
 
@@ -37,7 +38,7 @@ export default async function BoardPage({
   })
 
   return (
-    <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-8">
+    <InternalShell active="sites" member={member}>
       <div className="mx-auto max-w-[1100px]">
         <SiteWorkflowNav
           siteId={site.id}
@@ -111,6 +112,6 @@ export default async function BoardPage({
           </div>
         </aside>
       </div>
-    </main>
+    </InternalShell>
   )
 }
