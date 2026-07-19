@@ -8,6 +8,10 @@ import {
 } from 'lucide-react'
 import type { AuthenticatedMember } from '@/lib/auth-member'
 import { SignOutControl } from '@/components/sign-out-control'
+import {
+  SiteLifecycleMenu,
+  type SiteWorkflowMenuProps,
+} from '@/components/site-workflow-nav'
 
 type InternalSection = 'register' | 'sites'
 
@@ -15,6 +19,7 @@ type InternalShellProps = {
   active: InternalSection
   children: ReactNode
   member?: Pick<AuthenticatedMember, 'displayName' | 'email' | 'role'> | null
+  siteMenu?: SiteWorkflowMenuProps
 }
 
 const navigation: Array<{
@@ -37,7 +42,7 @@ const navigation: Array<{
   },
 ]
 
-export function InternalShell({ active, children, member }: InternalShellProps) {
+export function InternalShell({ active, children, member, siteMenu }: InternalShellProps) {
   const name = member?.displayName || member?.email || 'Signed in'
   const email = member?.displayName ? member.email : null
 
@@ -74,6 +79,8 @@ export function InternalShell({ active, children, member }: InternalShellProps) 
               )
             })}
           </nav>
+
+          {siteMenu && <SiteLifecycleMenu {...siteMenu} />}
         </div>
 
         <div className="internal-sidebar-footer">
@@ -115,6 +122,12 @@ export function InternalShell({ active, children, member }: InternalShellProps) 
           </Link>
           <SignOutControl />
         </header>
+
+        {siteMenu && (
+          <div className="internal-mobile-site-menu print:hidden">
+            <SiteLifecycleMenu {...siteMenu} compact />
+          </div>
+        )}
 
         <div className="internal-content">{children}</div>
       </div>

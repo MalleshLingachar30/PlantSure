@@ -204,6 +204,12 @@
     padding: 1.5rem 1.25rem 2rem;
   }
 
+  .internal-mobile-site-menu {
+    border-bottom: 1px solid var(--rule);
+    background: color-mix(in srgb, var(--paper) 88%, var(--card));
+    padding: 0.85rem 1rem;
+  }
+
   .internal-brand,
   .internal-topbar-brand,
   .internal-nav-item,
@@ -406,7 +412,7 @@
   @media (min-width: 1024px) {
     .internal-shell {
       display: grid;
-      grid-template-columns: 248px minmax(0, 1fr);
+      grid-template-columns: 292px minmax(0, 1fr);
     }
 
     .internal-sidebar {
@@ -422,6 +428,10 @@
     }
 
     .internal-topbar {
+      display: none;
+    }
+
+    .internal-mobile-site-menu {
       display: none;
     }
 
@@ -454,53 +464,251 @@
     gap: 0.75rem;
   }
 
-  .workflow-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--rule);
-    padding-bottom: 1rem;
+  .site-lifecycle-menu {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.35rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1.2rem;
   }
 
-  .workflow-step-wrap {
-    display: inline-flex;
+  .site-lifecycle-menu-compact {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .site-menu-summary {
+    display: grid;
+    gap: 0.2rem;
     min-width: 0;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .workflow-arrow {
-    height: 14px;
-    width: 14px;
-    color: var(--ink-faint);
-  }
-
-  .workflow-step {
-    display: inline-flex;
-    min-height: 34px;
-    align-items: center;
-    gap: 0.35rem;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
-    background: var(--card);
-    padding: 0.45rem 0.65rem;
+    background: color-mix(in srgb, var(--card) 74%, var(--paper));
+    padding: 0.75rem;
+  }
+
+  .site-menu-location {
+    overflow-wrap: anywhere;
+    color: var(--ink);
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: var(--tracking-site-id);
+    line-height: 1.35;
+  }
+
+  .site-menu-name {
+    overflow: hidden;
     color: var(--ink-soft);
     font-size: 12px;
-    font-weight: 500;
-    line-height: 1.2;
-    text-decoration: none;
+    line-height: 1.35;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .workflow-step:hover {
+  .site-menu-links {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .site-menu-link {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    padding: 0.5rem 0.6rem;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+
+  .site-menu-link:hover {
     border-color: var(--rule-strong);
+    background: var(--card);
     color: var(--ink);
   }
 
-  .workflow-step[data-active="true"] {
+  .site-menu-link[data-active="true"] {
     border-color: var(--ink);
     background: var(--ink);
     color: var(--paper);
+  }
+
+  .site-stage-list {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .site-stage-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .site-stage-heading > span:last-child {
+    overflow: hidden;
+    color: var(--ink-faint);
+    font-size: 11px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-stage-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px 26px minmax(0, 1fr);
+    gap: 0.45rem;
+    min-height: 42px;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    padding: 0.35rem 0.4rem;
+  }
+
+  .site-stage-connector {
+    position: absolute;
+    top: 0;
+    bottom: -0.15rem;
+    left: 13px;
+    width: 1px;
+    background: var(--rule);
+  }
+
+  .site-stage-item:first-of-type .site-stage-connector {
+    top: 50%;
+  }
+
+  .site-stage-item:last-child .site-stage-connector {
+    bottom: 50%;
+  }
+
+  .site-stage-state,
+  .site-stage-icon {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .site-stage-state {
+    color: var(--ink-faint);
+  }
+
+  .site-stage-icon {
+    height: 26px;
+    width: 26px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-soft);
+  }
+
+  .site-stage-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.05rem;
+  }
+
+  .site-stage-copy strong {
+    overflow: hidden;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-stage-copy span {
+    overflow: hidden;
+    color: var(--ink-faint);
+    font-size: 11px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-stage-item[data-state="done"] .site-stage-state {
+    color: var(--alive);
+  }
+
+  .site-stage-item[data-state="done"] .site-stage-icon {
+    border-color: color-mix(in srgb, var(--alive) 32%, var(--rule));
+    background: var(--alive-bg);
+    color: var(--alive);
+  }
+
+  .site-stage-item[data-state="current"] {
+    border-color: var(--rule-strong);
+    background: color-mix(in srgb, var(--watch-bg) 42%, transparent);
+  }
+
+  .site-stage-item[data-state="current"] .site-stage-state,
+  .site-stage-item[data-state="current"] .site-stage-icon {
+    color: var(--watch);
+  }
+
+  .site-stage-item[data-state="current"] .site-stage-icon {
+    border-color: color-mix(in srgb, var(--watch) 34%, var(--rule));
+    background: var(--watch-bg);
+  }
+
+  .site-stage-item[data-state="current"] .site-stage-copy strong {
+    color: var(--ink);
+  }
+
+  .site-stage-item[data-state="upcoming"] {
+    opacity: 0.72;
+  }
+
+  .site-stage-monitoring {
+    margin-top: 0.35rem;
+  }
+
+  .site-lifecycle-menu-compact .site-menu-summary,
+  .site-lifecycle-menu-compact .site-menu-links {
+    display: none;
+  }
+
+  .site-lifecycle-menu-compact .site-stage-list {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+  }
+
+  .site-lifecycle-menu-compact .site-stage-heading {
+    flex: 0 0 auto;
+    min-width: 112px;
+    align-self: center;
+    margin: 0;
+  }
+
+  .site-lifecycle-menu-compact .site-stage-heading > span:last-child {
+    display: none;
+  }
+
+  .site-lifecycle-menu-compact .site-stage-item {
+    flex: 0 0 172px;
+    grid-template-columns: 18px minmax(0, 1fr);
+    min-height: 48px;
+    border-color: var(--rule);
+    background: var(--card);
+  }
+
+  .site-lifecycle-menu-compact .site-stage-icon,
+  .site-lifecycle-menu-compact .site-stage-connector {
+    display: none;
   }
 
   .metric-line {

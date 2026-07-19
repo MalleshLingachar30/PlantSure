@@ -4,7 +4,6 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { InternalShell } from '@/components/internal-shell'
 import { PrintButton } from '@/components/print-button'
-import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 import { requireAdminMember } from '@/lib/auth-member'
 import { getAdminSiteDetail } from '@/lib/admin-data'
 import { withDatabase } from '@/lib/db'
@@ -38,14 +37,20 @@ export default async function BoardPage({
   })
 
   return (
-    <InternalShell active="sites" member={member}>
-      <div className="mx-auto max-w-[1100px]">
-        <SiteWorkflowNav
-          siteId={site.id}
-          locationId={site.locationId}
-          active="board"
-        />
-      </div>
+    <InternalShell
+      active="sites"
+      member={member}
+      siteMenu={{
+        siteId: site.id,
+        locationId: site.locationId,
+        locationCode: site.locationId,
+        siteName: site.name,
+        stage: site.stage,
+        status: site.status,
+        windowsCount: site.windowsCount,
+        active: 'board',
+      }}
+    >
 
       <div className="mx-auto mt-5 grid max-w-[1100px] gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="board-sheet" aria-labelledby="board-heading">

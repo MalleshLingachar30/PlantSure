@@ -18,7 +18,6 @@ import {
   VisitTimeline,
 } from '@/components/visit-timeline'
 import { InternalShell } from '@/components/internal-shell'
-import { SiteWorkflowNav } from '@/components/site-workflow-nav'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,14 +42,21 @@ export default async function SitePage({
   const timeline = timelineFromWindows(site.windows)
 
   return (
-    <InternalShell active="sites" member={member}>
+    <InternalShell
+      active="sites"
+      member={member}
+      siteMenu={{
+        siteId: site.id,
+        locationId: site.locationId,
+        locationCode: site.locationId,
+        siteName: site.name,
+        stage: site.stage,
+        status: site.status,
+        windowsCount: site.windowsCount,
+        active: 'detail',
+      }}
+    >
       <div className="mx-auto max-w-[1080px]">
-        <SiteWorkflowNav
-          siteId={site.id}
-          locationId={site.locationId}
-          active="detail"
-        />
-
         <header className="border-b pb-5" style={{ borderColor: 'var(--rule)' }}>
           <Link href="/admin" className="eyebrow hover:underline">
             Site registration
