@@ -116,6 +116,16 @@ export default async function AdminPage({
                 />
                 <TextField label="Planting date" name="plantingDate" type="date" defaultValue="2026-07-15" disabled={formDisabled} required />
                 <label className="field sm:col-span-2">
+                  <span>Planting photo URLs</span>
+                  <textarea
+                    name="plantingPhotoUrls"
+                    rows={3}
+                    className="input resize-none"
+                    placeholder="One photo URL per line"
+                    disabled={formDisabled}
+                  />
+                </label>
+                <label className="field sm:col-span-2">
                   <span>Species notes</span>
                   <textarea
                     name="speciesNotes"

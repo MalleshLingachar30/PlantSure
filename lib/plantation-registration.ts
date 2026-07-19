@@ -41,6 +41,7 @@ export type CreateSiteInput = {
   longitude: string
   plantedCount: number
   plantingDate: string
+  plantingPhotoUrls?: string[]
   speciesNotes?: string | null
   createdByMemberId: string
 }
@@ -169,6 +170,7 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
           longitude,
           planted_count,
           planting_date,
+          planting_photo_urls,
           species_notes,
           created_by_member_id
         ) values (
@@ -183,7 +185,8 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
           $9,
           $10,
           $11,
-          $12
+          $12,
+          $13
         )
         returning id, status
       `,
@@ -198,6 +201,7 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
         input.longitude,
         input.plantedCount,
         input.plantingDate,
+        JSON.stringify(input.plantingPhotoUrls ?? []),
         input.speciesNotes ?? null,
         input.createdByMemberId,
       ],

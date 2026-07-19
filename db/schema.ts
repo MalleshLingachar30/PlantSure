@@ -135,6 +135,7 @@ export const plantationSites = pgTable(
     longitude: numeric('longitude', { precision: 9, scale: 6 }).notNull(),
     plantedCount: integer('planted_count').notNull(),
     plantingDate: date('planting_date').notNull(),
+    plantingPhotoUrls: jsonb('planting_photo_urls').$type<string[]>().default(sql`'[]'::jsonb`).notNull(),
     speciesNotes: text('species_notes'),
     status: siteStatusEnum('status').default('registered').notNull(),
     monitoringStart: date('monitoring_start'),

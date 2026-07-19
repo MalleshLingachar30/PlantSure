@@ -23,6 +23,7 @@ const registrationSchema = z.object({
   longitude: z.string().trim().regex(/^-?\d+(\.\d+)?$/),
   plantedCount: z.coerce.number().int().positive(),
   plantingDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  plantingPhotoUrls: z.string().trim().optional(),
   speciesNotes: z.string().trim().optional(),
 })
 
@@ -40,8 +41,9 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
 
   const input = parsed.data
   const geography = getKarnatakaGeographyByKey(input.geographyKey)
+  const plantingPhotoUrls = parsePhotoUrls(input.plantingPhotoUrls)
 
-  if (!geography) {
+  if (!geography || !plantingPhotoUrls) {
     redirect('/admin?error=registration')
   }
 
@@ -66,6 +68,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
       longitude: input.longitude,
       plantedCount: input.plantedCount,
       plantingDate: input.plantingDate,
+      plantingPhotoUrls,
       speciesNotes: input.speciesNotes || null,
       createdByMemberId: member.id,
     })
@@ -94,4 +97,33 @@ export async function confirmSiteCounts(formData: FormData): Promise<void> {
   revalidatePath('/admin')
   revalidatePath(`/sites/${parsed.data.siteId}`)
   redirect(`/sites/${parsed.data.siteId}?confirmed=1`)
+}
+
+function parsePhotoUrls(value: string | undefined): string[] | null {
+  if (!value) {
+    return []
+  }
+
+  const urls = value
+    .split(/[\n,]/)
+    .map((url) => url.trim())
+    .filter(Boolean)
+
+  if (urls.length > 12) {
+    return null
+  }
+
+  for (const url of urls) {
+    try {
+      const parsed = new URL(url)
+
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return null
+      }
+    } catch {
+      return null
+    }
+  }
+
+  return urls
 }

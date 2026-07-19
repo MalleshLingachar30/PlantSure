@@ -142,6 +142,10 @@ test('site registration allocates Location IDs from the global prefix sequence',
       longitude: '76.941000',
       plantedCount: 600,
       plantingDate: '2026-07-15',
+      plantingPhotoUrls: [
+        'https://plantsure.feedbacknfc.com/evidence/planting-1.jpg',
+        'https://plantsure.feedbacknfc.com/evidence/planting-2.jpg',
+      ],
       createdByMemberId: memberId,
     })
     const second = await createPlantationSite(client, {
@@ -168,7 +172,16 @@ test('site registration allocates Location IDs from the global prefix sequence',
       `select next_location_sequence from plantation_location_sequences where prefix = $1`,
       ['KA-TMK-GUB'],
     )
+    const evidence = await client.query<{ planting_photo_urls: string[] }>(
+      `select planting_photo_urls from plantation_sites where id = $1`,
+      [first.id],
+    )
+
     assert.equal(sequence.rows[0]?.next_location_sequence, 3)
+    assert.deepEqual(evidence.rows[0]?.planting_photo_urls, [
+      'https://plantsure.feedbacknfc.com/evidence/planting-1.jpg',
+      'https://plantsure.feedbacknfc.com/evidence/planting-2.jpg',
+    ])
   })
 })
 

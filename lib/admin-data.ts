@@ -42,12 +42,33 @@ export type AdminSiteDetail = AdminSiteSummary & {
 }
 
 export type PublicSiteDetail = AdminSiteSummary & {
+  latitude: string
+  longitude: string
+  plantingPhotoUrls: string[]
   latestAudit: {
     auditedAt: string
     survivingCount: number
     survivalRate: string
     photoCount: number
   } | null
+  auditVisits: PublicAuditVisit[]
+}
+
+export type PublicAuditVisit = {
+  sequenceNumber: number
+  cycleLabel: string
+  dueDate: string
+  graceUntil: string
+  status: string
+  auditedAt: string | null
+  survivingCount: number | null
+  survivalRate: string | null
+  latitude: string | null
+  longitude: string | null
+  gpsAccuracyM: string | null
+  gpsStatus: string | null
+  photoUrls: string[]
+  remarks: string | null
 }
 
 export async function getAdminOverview(): Promise<AdminOverview> {
@@ -65,6 +86,9 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       district: string
       taluk: string
       village: string
+      latitude: string
+      longitude: string
+      planting_photo_urls: string[] | null
       planted_count: number
       planting_date: Date | string
       species_notes: string | null
@@ -84,6 +108,9 @@ export async function getAdminOverview(): Promise<AdminOverview> {
           sites.district,
           sites.taluk,
           sites.village,
+          sites.latitude::text,
+          sites.longitude::text,
+          sites.planting_photo_urls,
           sites.planted_count,
           sites.planting_date,
           sites.species_notes,
@@ -143,6 +170,9 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
       district: string
       taluk: string
       village: string
+      latitude: string
+      longitude: string
+      planting_photo_urls: string[] | null
       planted_count: number
       planting_date: Date | string
       species_notes: string | null
@@ -162,6 +192,9 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
           sites.district,
           sites.taluk,
           sites.village,
+          sites.latitude::text,
+          sites.longitude::text,
+          sites.planting_photo_urls,
           sites.planted_count,
           sites.planting_date,
           sites.species_notes,
@@ -262,6 +295,9 @@ export async function getPublicSiteByLocationId(
       district: string
       taluk: string
       village: string
+      latitude: string
+      longitude: string
+      planting_photo_urls: string[] | null
       planted_count: number
       planting_date: Date | string
       species_notes: string | null
@@ -281,6 +317,9 @@ export async function getPublicSiteByLocationId(
           sites.district,
           sites.taluk,
           sites.village,
+          sites.latitude::text,
+          sites.longitude::text,
+          sites.planting_photo_urls,
           sites.planted_count,
           sites.planting_date,
           sites.species_notes,
@@ -326,6 +365,45 @@ export async function getPublicSiteByLocationId(
       [row.id],
     )
     const audit = latestAudit.rows[0]
+    const auditVisits = await client.query<{
+      sequence_number: number
+      cycle_label: string
+      due_date: Date | string
+      grace_until: Date | string
+      status: string
+      audited_at: Date | string | null
+      surviving_count: number | null
+      survival_rate: string | null
+      latitude: string | null
+      longitude: string | null
+      gps_accuracy_m: string | null
+      gps_status: string | null
+      photo_urls: string[] | null
+      remarks: string | null
+    }>(
+      `
+        select
+          windows.sequence_number,
+          windows.cycle_label,
+          windows.due_date,
+          windows.grace_until,
+          windows.status,
+          audits.audited_at,
+          audits.surviving_count,
+          audits.survival_rate::text,
+          audits.latitude::text,
+          audits.longitude::text,
+          audits.gps_accuracy_m::text,
+          audits.gps_status::text,
+          audits.photo_urls,
+          audits.remarks
+        from plantation_audit_windows windows
+        left join plantation_audits audits on audits.window_id = windows.id
+        where windows.site_id = $1
+        order by windows.sequence_number
+      `,
+      [row.id],
+    )
 
     return {
       id: row.id,
@@ -336,6 +414,9 @@ export async function getPublicSiteByLocationId(
       district: row.district,
       taluk: row.taluk,
       village: row.village,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      plantingPhotoUrls: row.planting_photo_urls ?? [],
       plantedCount: row.planted_count,
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,
@@ -352,6 +433,22 @@ export async function getPublicSiteByLocationId(
             photoCount: audit.photo_count,
           }
         : null,
+      auditVisits: auditVisits.rows.map((visit) => ({
+        sequenceNumber: visit.sequence_number,
+        cycleLabel: visit.cycle_label,
+        dueDate: dateString(visit.due_date),
+        graceUntil: dateString(visit.grace_until),
+        status: visit.status,
+        auditedAt: visit.audited_at ? timestampDateString(visit.audited_at) : null,
+        survivingCount: visit.surviving_count,
+        survivalRate: visit.survival_rate,
+        latitude: visit.latitude,
+        longitude: visit.longitude,
+        gpsAccuracyM: visit.gps_accuracy_m,
+        gpsStatus: visit.gps_status,
+        photoUrls: visit.photo_urls ?? [],
+        remarks: visit.remarks,
+      })),
     }
   })
 }
