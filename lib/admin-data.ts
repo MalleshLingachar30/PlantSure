@@ -62,6 +62,7 @@ export type PublicSiteDetail = AdminSiteSummary & {
   latitude: string
   longitude: string
   plantingPhotoUrls: string[]
+  stageEvidence: PublicPlantingEvidence[]
   latestAudit: {
     auditedAt: string
     survivingCount: number
@@ -69,6 +70,14 @@ export type PublicSiteDetail = AdminSiteSummary & {
     photoCount: number
   } | null
   auditVisits: PublicAuditVisit[]
+}
+
+export type PublicPlantingEvidence = {
+  id: string
+  stage: string
+  url: string
+  capturedAt: string
+  caption: string | null
 }
 
 export type PublicAuditVisit = {
@@ -472,6 +481,29 @@ export async function getPublicSiteByLocationId(
       `,
       [row.id],
     )
+    const stageEvidence = await client.query<{
+      id: string
+      stage: string
+      url: string
+      captured_at: Date | string
+      caption: string | null
+    }>(
+      `
+        select id, stage::text, url, captured_at, caption
+        from plantation_evidence
+        where site_id = $1
+          and stage in ('pits_dug', 'planted')
+        order by
+          case stage
+            when 'planted' then 1
+            when 'pits_dug' then 2
+            else 3
+          end,
+          captured_at desc,
+          received_at desc
+      `,
+      [row.id],
+    )
 
     return {
       id: row.id,
@@ -485,6 +517,13 @@ export async function getPublicSiteByLocationId(
       latitude: row.latitude,
       longitude: row.longitude,
       plantingPhotoUrls: row.planting_photo_urls ?? [],
+      stageEvidence: stageEvidence.rows.map((evidence) => ({
+        id: evidence.id,
+        stage: evidence.stage,
+        url: evidence.url,
+        capturedAt: timestampDateString(evidence.captured_at),
+        caption: evidence.caption,
+      })),
       plantedCount: row.planted_count,
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import type { PublicAuditVisit } from '@/lib/admin-data'
+import type { PublicAuditVisit, PublicPlantingEvidence } from '@/lib/admin-data'
 import { getPublicSiteByLocationId } from '@/lib/admin-data'
 import { displayDate } from '@/lib/site-url'
 
@@ -16,6 +16,11 @@ export default async function PublicSitePage({
   if (!site) {
     notFound()
   }
+
+  const plantingEvidenceUrls = [
+    ...site.plantingPhotoUrls,
+    ...site.stageEvidence.map((evidence) => evidence.url),
+  ]
 
   return (
     <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-10">
@@ -94,7 +99,7 @@ export default async function PublicSitePage({
               </h2>
             </div>
             <span className="public-status-pill">
-              {site.plantingPhotoUrls.length} photos
+              {plantingEvidenceUrls.length} photos
             </span>
           </div>
 
@@ -113,8 +118,10 @@ export default async function PublicSitePage({
             </div>
           </dl>
 
+          <StageEvidenceSummary evidence={site.stageEvidence} />
+
           <EvidencePhotos
-            urls={site.plantingPhotoUrls}
+            urls={plantingEvidenceUrls}
             emptyText="No planting photos have been attached to this record yet."
           />
         </section>
@@ -150,6 +157,24 @@ export default async function PublicSitePage({
         </section>
       </article>
     </main>
+  )
+}
+
+function StageEvidenceSummary({ evidence }: { evidence: PublicPlantingEvidence[] }) {
+  if (evidence.length === 0) {
+    return null
+  }
+
+  return (
+    <ol className="public-stage-list" aria-label="Planting stage evidence">
+      {evidence.map((item) => (
+        <li key={item.id}>
+          <span className="eyebrow">{stageText(item.stage)}</span>
+          <strong>{displayDate(item.capturedAt)}</strong>
+          {item.caption && <span>{item.caption}</span>}
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -229,6 +254,18 @@ function AuditVisitCard({
       />
     </li>
   )
+}
+
+function stageText(stage: string): string {
+  if (stage === 'pits_dug') {
+    return 'Pits dug'
+  }
+
+  if (stage === 'planted') {
+    return 'Planted'
+  }
+
+  return stage
 }
 
 function EvidencePhotos({

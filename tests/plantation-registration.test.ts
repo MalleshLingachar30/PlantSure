@@ -537,6 +537,26 @@ test('audit check records per-species results and completes the window', async (
       `,
       [site.id],
     )
+
+    await assert.rejects(
+      () =>
+        recordAuditCheck(client, {
+          windowId: window.rows[0]?.id ?? '',
+          auditorMemberId: memberId,
+          auditedAt: '2026-07-19T10:00:00',
+          speciesResults: [
+            { speciesName: 'Teak', survivingCount: 190 },
+            { speciesName: 'Mahogany', survivingCount: 140 },
+          ],
+          photoUrls: ['https://plantsure.feedbacknfc.com/evidence/check-too-early.jpg'],
+          latitude: '13.312200',
+          longitude: '76.941200',
+          gpsStatus: 'confirmed',
+          remarks: 'Too early',
+        }),
+      /Audit checks can only be recorded during the open window/,
+    )
+
     const result = await recordAuditCheck(client, {
       windowId: window.rows[0]?.id ?? '',
       auditorMemberId: memberId,

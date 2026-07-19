@@ -247,9 +247,11 @@ export default async function SitePage({
 }
 
 function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
-  const window = site.windows.find((item) => item.status === 'missed') ??
-    site.windows.find((item) => item.status === 'scheduled') ??
-    null
+  const today = new Date().toISOString().slice(0, 10)
+  const window = site.windows.find((item) => isWindowOpenForCheck(item, today)) ?? null
+  const nextScheduledWindow = site.windows.find(
+    (item) => item.status === 'scheduled' && item.dueDate > today,
+  )
 
   return (
     <section className="admin-panel mt-7" aria-labelledby="check-capture-heading">
@@ -264,7 +266,15 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
 
       <div className="grid gap-5 p-5 sm:p-6">
         {!window ? (
-          <p className="body-copy">No open check windows are available.</p>
+          <div className="grid gap-2">
+            <p className="body-copy">No check window is open today.</p>
+            {nextScheduledWindow && (
+              <p className="body-copy text-[14px]">
+                Next check: {nextScheduledWindow.cycleLabel}, due{' '}
+                {nextScheduledWindow.dueDate}.
+              </p>
+            )}
+          </div>
         ) : (
           <form action={`/sites/${site.id}/checks`} method="post" className="grid gap-5">
             <input type="hidden" name="siteId" value={site.id} />
@@ -362,6 +372,14 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
         )}
       </div>
     </section>
+  )
+}
+
+function isWindowOpenForCheck(window: AdminAuditWindow, today: string): boolean {
+  return (
+    window.status === 'scheduled' &&
+    window.dueDate <= today &&
+    window.graceUntil >= today
   )
 }
 

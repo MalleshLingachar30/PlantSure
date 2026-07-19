@@ -39,6 +39,8 @@ type WindowForAudit = {
   site_id: string
   status: AuditWindowStatus
   planted_count: number
+  due_date: Date | string
+  grace_until: Date | string
 }
 
 type BaselineSpeciesRow = {
@@ -57,6 +59,8 @@ export async function recordAuditCheck(
           windows.id,
           windows.site_id,
           windows.status,
+          windows.due_date,
+          windows.grace_until,
           sites.planted_count
         from plantation_audit_windows windows
         join plantation_sites sites on sites.id = windows.site_id
@@ -71,8 +75,16 @@ export async function recordAuditCheck(
       throw new Error('Audit window not found')
     }
 
-    if (window.status === 'completed' || window.status === 'waived') {
+    if (window.status !== 'scheduled') {
       throw new Error('Audit window is not open for checks')
+    }
+
+    const auditedDate = input.auditedAt.slice(0, 10)
+    const dueDate = dateString(window.due_date)
+    const graceUntil = dateString(window.grace_until)
+
+    if (auditedDate < dueDate || auditedDate > graceUntil) {
+      throw new Error('Audit checks can only be recorded during the open window')
     }
 
     const baseline = await tx.query<BaselineSpeciesRow>(
@@ -183,6 +195,18 @@ export async function recordAuditCheck(
 
     return { auditId, status }
   })
+}
+
+function dateString(value: Date | string): string {
+  if (value instanceof Date) {
+    const year = value.getFullYear()
+    const month = `${value.getMonth() + 1}`.padStart(2, '0')
+    const day = `${value.getDate()}`.padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+  }
+
+  return value.slice(0, 10)
 }
 
 export async function markMissedAuditWindows(
