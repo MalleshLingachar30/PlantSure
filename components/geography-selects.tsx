@@ -26,13 +26,6 @@ export function GeographySelects({ disabled = false, options }: GeographySelects
       (option) => `${option.districtCode}:${option.taluk}`,
     )
   }, [options, selected?.districtCode])
-  const villages = useMemo(() => {
-    return options.filter(
-      (option) =>
-        option.districtCode === selected?.districtCode &&
-        option.taluk === selected?.taluk,
-    )
-  }, [options, selected?.districtCode, selected?.taluk])
 
   if (!selected) {
     return null
@@ -96,27 +89,11 @@ export function GeographySelects({ disabled = false, options }: GeographySelects
         </select>
       </label>
 
-      <label className="field">
-        <span>Village</span>
-        <select
-          className="input"
-          value={selected.key}
-          disabled={disabled}
-          onChange={(event) => setSelectedKey(event.target.value)}
-        >
-          {villages.map((village) => (
-            <option key={village.key} value={village.key}>
-              {village.village}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="derived-location" aria-live="polite">
+      <div className="derived-location sm:col-span-2" aria-live="polite">
         <span className="eyebrow">Location prefix</span>
         <strong>{locationPrefixForGeography(selected)}</strong>
         <span>
-          Codes are derived from the selected district and village.
+          Codes are derived from the selected district and taluk.
         </span>
       </div>
     </div>

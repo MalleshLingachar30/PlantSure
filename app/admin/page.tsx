@@ -98,6 +98,7 @@ export default async function AdminPage({
                   options={KARNATAKA_GEOGRAPHIES}
                   disabled={formDisabled}
                 />
+                <TextField label="Village / locality" name="village" defaultValue="Gubbi" disabled={formDisabled} required />
               </fieldset>
 
               <fieldset className="form-grid" disabled={formDisabled}>
