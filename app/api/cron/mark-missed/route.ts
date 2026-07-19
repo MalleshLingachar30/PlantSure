@@ -10,13 +10,10 @@ export async function GET(request: Request) {
   }
 
   const secret = process.env.CRON_SECRET
+  const authorization = request.headers.get('authorization')
 
-  if (secret) {
-    const authorization = request.headers.get('authorization')
-
-    if (authorization !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  if (!secret || authorization !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const result = await withDatabase((client) => markMissedAuditWindows(client))
