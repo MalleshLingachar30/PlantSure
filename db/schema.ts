@@ -75,7 +75,9 @@ export const windowEventTypeEnum = pgEnum('plantation_window_event_type', [
 
 export const memberRoleEnum = pgEnum('plantation_member_role', [
   'admin',
+  'manager',
   'auditor',
+  'technician',
 ])
 
 export const landOwnershipEnum = pgEnum('plantation_land_ownership', [
@@ -415,4 +417,11 @@ export const plantationAcceptances = pgTable('plantation_acceptances', {
   acceptedRole: acceptanceRoleEnum('accepted_role'),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   acceptedSnapshot: jsonb('accepted_snapshot').$type<Record<string, unknown>>(),
+  acceptedAsAdmin: boolean('accepted_as_admin').default(false).notNull(),
+  rejectedBy: uuid('rejected_by').references(() => plantationMembers.id, {
+    onDelete: 'restrict',
+  }),
+  rejectedAt: timestamp('rejected_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  rejectedAsAdmin: boolean('rejected_as_admin').default(false).notNull(),
 })

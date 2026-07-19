@@ -71,6 +71,38 @@ async function insertProgram(client: Client, id: string): Promise<void> {
   )
 }
 
+async function insertMember(
+  client: Client,
+  id: string,
+  role: 'admin' | 'manager' | 'auditor' | 'technician',
+): Promise<void> {
+  await client.query(
+    `
+      insert into plantation_members (
+        id,
+        clerk_user_id,
+        email,
+        display_name,
+        role
+      ) values (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5
+      )
+      on conflict (id) do update set role = excluded.role
+    `,
+    [
+      id,
+      `test:${id}`,
+      `${role}-${id.slice(-4)}@example.com`,
+      `Test ${role}`,
+      role,
+    ],
+  )
+}
+
 async function insertSite(client: Client, id: string, programId: string, locationId: string): Promise<void> {
   await client.query(
     `
@@ -264,8 +296,12 @@ test('Postgres advances site stages only through the state function', async () =
   await withMigratedDatabase(async ({ client }) => {
     const programId = '00000000-0000-4000-8000-000000000251'
     const siteId = '00000000-0000-4000-8000-000000000252'
+    const registrarId = '00000000-0000-4000-8000-000000000253'
+    const sponsorId = '00000000-0000-4000-8000-000000000254'
 
     await insertProgram(client, programId)
+    await insertMember(client, registrarId, 'manager')
+    await insertMember(client, sponsorId, 'technician')
     await insertSite(client, siteId, programId, 'KA-TMK-GUB-000126')
 
     await assert.rejects(
@@ -277,35 +313,44 @@ test('Postgres advances site stages only through the state function', async () =
       /site stage must advance through advance_plantation_site_stage/,
     )
 
+    await assert.rejects(
+      () =>
+        client.query(
+          `select advance_plantation_site_stage($1, 'land_verified', $2)`,
+          [siteId, sponsorId],
+        ),
+      /plantation member role technician cannot advance planting stages/,
+    )
+
     const verified = await client.query<{ stage: string }>(
-      `select advance_plantation_site_stage($1, 'land_verified', 'test', 'verified in field')::text as stage`,
-      [siteId],
+      `select advance_plantation_site_stage($1, 'land_verified', $2, 'verified in field')::text as stage`,
+      [siteId, registrarId],
     )
     assert.equal(verified.rows[0]?.stage, 'land_verified')
 
     await assert.rejects(
       () =>
         client.query(
-          `select advance_plantation_site_stage($1, 'material_arranged', 'test')`,
-          [siteId],
+          `select advance_plantation_site_stage($1, 'material_arranged', $2)`,
+          [siteId, registrarId],
         ),
       /site stage must move forward one step at a time/,
     )
 
     await client.query(
-      `select advance_plantation_site_stage($1, 'species_configured', 'test')`,
-      [siteId],
+      `select advance_plantation_site_stage($1, 'species_configured', $2)`,
+      [siteId, registrarId],
     )
     await client.query(
-      `select advance_plantation_site_stage($1, 'material_arranged', 'test')`,
-      [siteId],
+      `select advance_plantation_site_stage($1, 'material_arranged', $2)`,
+      [siteId, registrarId],
     )
 
     await assert.rejects(
       () =>
         client.query(
-          `select advance_plantation_site_stage($1, 'pits_dug', 'test')`,
-          [siteId],
+          `select advance_plantation_site_stage($1, 'pits_dug', $2)`,
+          [siteId, registrarId],
         ),
       /required stage evidence is missing/,
     )
@@ -329,8 +374,8 @@ test('Postgres advances site stages only through the state function', async () =
       [siteId],
     )
     const pits = await client.query<{ stage: string }>(
-      `select advance_plantation_site_stage($1, 'pits_dug', 'test')::text as stage`,
-      [siteId],
+      `select advance_plantation_site_stage($1, 'pits_dug', $2)::text as stage`,
+      [siteId, registrarId],
     )
     assert.equal(pits.rows[0]?.stage, 'pits_dug')
 
@@ -347,8 +392,13 @@ test('Postgres advances window state only through the state function', async () 
     const programId = '00000000-0000-4000-8000-000000000261'
     const siteId = '00000000-0000-4000-8000-000000000262'
     const windowId = '00000000-0000-4000-8000-000000000263'
+    const secondWindowId = '00000000-0000-4000-8000-000000000264'
+    const inspectorId = '00000000-0000-4000-8000-000000000265'
+    const registrarId = '00000000-0000-4000-8000-000000000266'
 
     await insertProgram(client, programId)
+    await insertMember(client, inspectorId, 'auditor')
+    await insertMember(client, registrarId, 'manager')
     await insertSite(client, siteId, programId, 'KA-TMK-GUB-000127')
     await client.query(
       `
@@ -370,6 +420,26 @@ test('Postgres advances window state only through the state function', async () 
       `,
       [windowId, siteId],
     )
+    await client.query(
+      `
+        insert into plantation_audit_windows (
+          id,
+          site_id,
+          sequence_number,
+          cycle_label,
+          due_date,
+          grace_until
+        ) values (
+          $1,
+          $2,
+          2,
+          'Y1-Q2',
+          '2027-01-15',
+          '2027-01-29'
+        )
+      `,
+      [secondWindowId, siteId],
+    )
 
     await assert.rejects(
       () =>
@@ -380,9 +450,33 @@ test('Postgres advances window state only through the state function', async () 
       /window status must advance through advance_plantation_window_state/,
     )
 
+    await assert.rejects(
+      () =>
+        client.query(
+          `select advance_plantation_window_state($1, 'completed', $2)`,
+          [windowId, registrarId],
+        ),
+      /plantation member role manager cannot record checks/,
+    )
+
+    const completed = await client.query<{ status: string }>(
+      `select advance_plantation_window_state($1, 'completed', $2)::text as status`,
+      [windowId, inspectorId],
+    )
+    assert.equal(completed.rows[0]?.status, 'completed')
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `select advance_plantation_window_state($1, 'missed', $2)`,
+          [secondWindowId, inspectorId],
+        ),
+      /missed windows can only be recorded by cron/,
+    )
+
     const missed = await client.query<{ status: string }>(
       `select advance_plantation_window_state($1, 'missed', 'cron')::text as status`,
-      [windowId],
+      [secondWindowId],
     )
     assert.equal(missed.rows[0]?.status, 'missed')
 
@@ -394,7 +488,7 @@ test('Postgres advances window state only through the state function', async () 
         order by created_at desc
         limit 1
       `,
-      [windowId],
+      [secondWindowId],
     )
     assert.deepEqual(event.rows[0], { event_type: 'missed', actor: 'cron' })
   })
@@ -405,9 +499,113 @@ test('Postgres locks accepted acceptance records', async () => {
     const programId = '00000000-0000-4000-8000-000000000271'
     const siteId = '00000000-0000-4000-8000-000000000272'
     const acceptanceId = '00000000-0000-4000-8000-000000000273'
+    const rejectedAcceptanceId = '00000000-0000-4000-8000-000000000274'
+    const secondSiteId = '00000000-0000-4000-8000-000000000275'
+    const registrarId = '00000000-0000-4000-8000-000000000276'
+    const sponsorId = '00000000-0000-4000-8000-000000000277'
+    const inspectorId = '00000000-0000-4000-8000-000000000278'
+    const adminBreakGlassSiteId = '00000000-0000-4000-8000-000000000279'
+    const adminAcceptanceId = '00000000-0000-4000-8000-000000000280'
+    const adminMemberId = '00000000-0000-4000-8000-000000000020'
 
     await insertProgram(client, programId)
+    await insertMember(client, registrarId, 'manager')
+    await insertMember(client, sponsorId, 'technician')
+    await insertMember(client, inspectorId, 'auditor')
     await insertSite(client, siteId, programId, 'KA-TMK-GUB-000128')
+    await insertSite(client, secondSiteId, programId, 'KA-TMK-GUB-000129')
+    await insertSite(client, adminBreakGlassSiteId, programId, 'KA-TMK-GUB-000130')
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `
+            insert into plantation_acceptances (
+              site_id,
+              submitted_by
+            ) values (
+              $1,
+              $2
+            )
+          `,
+          [siteId, inspectorId],
+        ),
+      /plantation member role auditor cannot submit a baseline for acceptance/,
+    )
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `
+            insert into plantation_acceptances (
+              site_id,
+              submitted_by,
+              accepted_by,
+              accepted_role,
+              accepted_at,
+              accepted_snapshot
+            ) values (
+              $1,
+              $2,
+              $2,
+              'primary',
+              now(),
+              '{"species":[{"speciesName":"Mixed","plantedCount":600}]}'::jsonb
+            )
+          `,
+          [siteId, registrarId],
+        ),
+      /registrar and sponsor must be different members/,
+    )
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `
+            insert into plantation_acceptances (
+              site_id,
+              submitted_by,
+              accepted_by,
+              accepted_role,
+              accepted_at,
+              accepted_snapshot
+            ) values (
+              $1,
+              $2,
+              $2,
+              'primary',
+              now(),
+              '{"species":[{"speciesName":"Mixed","plantedCount":600}]}'::jsonb
+            )
+          `,
+          [adminBreakGlassSiteId, adminMemberId],
+        ),
+      /admin acceptance must be recorded as admin break-glass/,
+    )
+
+    await client.query(
+      `
+        insert into plantation_acceptances (
+          id,
+          site_id,
+          submitted_by,
+          accepted_by,
+          accepted_as_admin,
+          accepted_at,
+          accepted_snapshot
+        ) values (
+          $1,
+          $2,
+          $3,
+          $3,
+          true,
+          now(),
+          '{"species":[{"speciesName":"Mixed","plantedCount":600}]}'::jsonb
+        )
+      `,
+      [adminAcceptanceId, adminBreakGlassSiteId, adminMemberId],
+    )
+
     await client.query(
       `
         insert into plantation_acceptances (
@@ -421,14 +619,14 @@ test('Postgres locks accepted acceptance records', async () => {
         ) values (
           $1,
           $2,
-          '00000000-0000-4000-8000-000000000020',
-          '00000000-0000-4000-8000-000000000020',
+          $3,
+          $4,
           'primary',
           now(),
           '{"species":[{"speciesName":"Mixed","plantedCount":600}]}'::jsonb
         )
       `,
-      [acceptanceId, siteId],
+      [acceptanceId, siteId, registrarId, sponsorId],
     )
 
     await assert.rejects(
@@ -437,11 +635,41 @@ test('Postgres locks accepted acceptance records', async () => {
           `update plantation_acceptances set accepted_snapshot = '{}'::jsonb where id = $1`,
           [acceptanceId],
         ),
-      /accepted plantation acceptance records are locked/,
+      /decided plantation acceptance records are locked/,
     )
     await assert.rejects(
       () => client.query(`delete from plantation_acceptances where id = $1`, [acceptanceId]),
-      /accepted plantation acceptance records are locked/,
+      /decided plantation acceptance records are locked/,
+    )
+
+    await client.query(
+      `
+        insert into plantation_acceptances (
+          id,
+          site_id,
+          submitted_by,
+          rejected_by,
+          rejected_at,
+          rejection_reason
+        ) values (
+          $1,
+          $2,
+          $3,
+          $4,
+          now(),
+          'baseline needs corrected species rows'
+        )
+      `,
+      [rejectedAcceptanceId, secondSiteId, registrarId, sponsorId],
+    )
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `update plantation_acceptances set rejection_reason = 'changed' where id = $1`,
+          [rejectedAcceptanceId],
+        ),
+      /decided plantation acceptance records are locked/,
     )
   })
 })

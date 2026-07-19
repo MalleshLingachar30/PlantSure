@@ -12,7 +12,7 @@ export type AuthenticatedMember = {
   clerkUserId: string
   email: string | null
   displayName: string | null
-  role: 'admin' | 'auditor'
+  role: 'admin' | 'manager' | 'auditor' | 'technician'
 }
 
 type MemberRow = {
@@ -20,7 +20,7 @@ type MemberRow = {
   clerk_user_id: string
   email: string | null
   display_name: string | null
-  role: 'admin' | 'auditor'
+  role: 'admin' | 'manager' | 'auditor' | 'technician'
 }
 
 export async function requireSignedIn(): Promise<{ userId: string }> {
