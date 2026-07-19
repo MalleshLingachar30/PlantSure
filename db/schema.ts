@@ -78,6 +78,37 @@ export const memberRoleEnum = pgEnum('plantation_member_role', [
   'auditor',
 ])
 
+export const landOwnershipEnum = pgEnum('plantation_land_ownership', [
+  'government',
+  'private',
+  'institutional',
+  'other',
+])
+
+export const plantationTypeEnum = pgEnum('plantation_type', [
+  'block',
+  'bund_only',
+  'bund_and_block',
+])
+
+export const lifecycleStageEnum = pgEnum('plantation_lifecycle_stage', [
+  'land_identified',
+  'land_verified',
+  'species_configured',
+  'material_arranged',
+  'pits_dug',
+  'planted',
+  'submitted_for_acceptance',
+  'accepted',
+  'monitoring',
+  'archived',
+])
+
+export const acceptanceRoleEnum = pgEnum('plantation_acceptance_role', [
+  'primary',
+  'fallback',
+])
+
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -140,6 +171,14 @@ export const plantationSites = pgTable(
     status: siteStatusEnum('status').default('registered').notNull(),
     monitoringStart: date('monitoring_start'),
     monitoringEnd: date('monitoring_end'),
+    landOwnership: landOwnershipEnum('land_ownership').default('other').notNull(),
+    landCustodian: text('land_custodian'),
+    approvalReference: text('approval_reference'),
+    isSharedParcel: boolean('is_shared_parcel').default(false).notNull(),
+    watchAndWard: boolean('watch_and_ward').default(false).notNull(),
+    boundaryPoints: jsonb('boundary_points').$type<Array<{ lat: number; lng: number }>>().default(sql`'[]'::jsonb`).notNull(),
+    plantationType: plantationTypeEnum('plantation_type').default('block').notNull(),
+    stage: lifecycleStageEnum('stage').default('land_identified').notNull(),
     createdByMemberId: uuid('created_by_member_id')
       .notNull()
       .references(() => plantationMembers.id, { onDelete: 'restrict' }),
@@ -148,6 +187,24 @@ export const plantationSites = pgTable(
   (table) => ({
     programIdx: index('plantation_sites_program_id_idx').on(table.programId),
     locationIdIdx: index('plantation_sites_location_id_idx').on(table.locationId),
+  }),
+)
+
+export const plantationBatchSpecies = pgTable(
+  'plantation_batch_species',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => plantationSites.id, { onDelete: 'restrict' }),
+    speciesName: text('species_name').notNull(),
+    plantedCount: integer('planted_count').notNull(),
+    spacingNotes: text('spacing_notes'),
+    placement: text('placement'),
+    ...timestamps,
+  },
+  (table) => ({
+    siteIdx: index('plantation_batch_species_site_id_idx').on(table.siteId),
   }),
 )
 
@@ -273,3 +330,89 @@ export const plantationWindowEvents = pgTable(
     createdAtIdx: index('plantation_window_events_created_at_idx').on(table.createdAt.desc()),
   }),
 )
+
+export const plantationAuditSpeciesResults = pgTable(
+  'plantation_audit_species_results',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    auditId: uuid('audit_id')
+      .notNull()
+      .references(() => plantationAudits.id, { onDelete: 'restrict' }),
+    speciesName: text('species_name').notNull(),
+    plantedCount: integer('planted_count').notNull(),
+    survivingCount: integer('surviving_count').notNull(),
+    survivalRate: numeric('survival_rate', { precision: 5, scale: 2 })
+      .notNull()
+      .generatedAlwaysAs(
+        sql`case when planted_count = 0 then 0 else round((surviving_count::numeric / planted_count::numeric) * 100, 2) end`,
+      ),
+  },
+  (table) => ({
+    auditIdx: index('plantation_audit_species_results_audit_id_idx').on(table.auditId),
+  }),
+)
+
+export const plantationStageEvents = pgTable(
+  'plantation_stage_events',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => plantationSites.id, { onDelete: 'restrict' }),
+    fromStage: lifecycleStageEnum('from_stage'),
+    toStage: lifecycleStageEnum('to_stage').notNull(),
+    actor: text('actor').notNull(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    siteCreatedAtIdx: index('plantation_stage_events_site_id_created_at_idx').on(
+      table.siteId,
+      table.createdAt.desc(),
+    ),
+  }),
+)
+
+export const plantationEvidence = pgTable(
+  'plantation_evidence',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => plantationSites.id, { onDelete: 'restrict' }),
+    stage: lifecycleStageEnum('stage').notNull(),
+    auditId: uuid('audit_id').references(() => plantationAudits.id, { onDelete: 'restrict' }),
+    url: text('url').notNull(),
+    capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).defaultNow().notNull(),
+    latitude: numeric('latitude', { precision: 9, scale: 6 }),
+    longitude: numeric('longitude', { precision: 9, scale: 6 }),
+    gpsAccuracy: numeric('gps_accuracy', { precision: 8, scale: 2 }),
+    caption: text('caption'),
+    uploadedBy: uuid('uploaded_by')
+      .notNull()
+      .references(() => plantationMembers.id, { onDelete: 'restrict' }),
+  },
+  (table) => ({
+    siteStageIdx: index('plantation_evidence_site_stage_idx').on(table.siteId, table.stage),
+    auditIdx: index('plantation_evidence_audit_id_idx').on(table.auditId),
+  }),
+)
+
+export const plantationAcceptances = pgTable('plantation_acceptances', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id')
+    .notNull()
+    .references(() => plantationSites.id, { onDelete: 'restrict' })
+    .unique(),
+  submittedBy: uuid('submitted_by')
+    .notNull()
+    .references(() => plantationMembers.id, { onDelete: 'restrict' }),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+  acceptedBy: uuid('accepted_by').references(() => plantationMembers.id, {
+    onDelete: 'restrict',
+  }),
+  acceptedRole: acceptanceRoleEnum('accepted_role'),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  acceptedSnapshot: jsonb('accepted_snapshot').$type<Record<string, unknown>>(),
+})

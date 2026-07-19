@@ -142,6 +142,11 @@ test('site registration allocates Location IDs from the global prefix sequence',
       longitude: '76.941000',
       plantedCount: 600,
       plantingDate: '2026-07-15',
+      species: [
+        { speciesName: 'Teak', plantedCount: 200 },
+        { speciesName: 'Mahogany', plantedCount: 150 },
+        { speciesName: 'Silver oak', plantedCount: 250 },
+      ],
       plantingPhotoUrls: [
         'https://plantsure.feedbacknfc.com/evidence/planting-1.jpg',
         'https://plantsure.feedbacknfc.com/evidence/planting-2.jpg',
@@ -176,11 +181,25 @@ test('site registration allocates Location IDs from the global prefix sequence',
       `select planting_photo_urls from plantation_sites where id = $1`,
       [first.id],
     )
+    const species = await client.query<{ species_name: string; planted_count: number }>(
+      `
+        select species_name, planted_count
+        from plantation_batch_species
+        where site_id = $1
+        order by species_name
+      `,
+      [first.id],
+    )
 
     assert.equal(sequence.rows[0]?.next_location_sequence, 3)
     assert.deepEqual(evidence.rows[0]?.planting_photo_urls, [
       'https://plantsure.feedbacknfc.com/evidence/planting-1.jpg',
       'https://plantsure.feedbacknfc.com/evidence/planting-2.jpg',
+    ])
+    assert.deepEqual(species.rows, [
+      { species_name: 'Mahogany', planted_count: 150 },
+      { species_name: 'Silver oak', planted_count: 250 },
+      { species_name: 'Teak', planted_count: 200 },
     ])
   })
 })
@@ -300,7 +319,7 @@ test('confirm counts locks the site and creates twenty windows with generated ev
 
     await assert.rejects(
       () => client.query(`update plantation_sites set planted_count = 601 where id = $1`, [siteId]),
-      /planted_count is locked after counts are confirmed/,
+      /planted_count is derived from species rows/,
     )
   })
 })

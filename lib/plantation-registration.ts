@@ -42,8 +42,16 @@ export type CreateSiteInput = {
   plantedCount: number
   plantingDate: string
   plantingPhotoUrls?: string[]
+  species?: CreateSiteSpeciesInput[]
   speciesNotes?: string | null
   createdByMemberId: string
+}
+
+export type CreateSiteSpeciesInput = {
+  speciesName: string
+  plantedCount: number
+  spacingNotes?: string | null
+  placement?: string | null
 }
 
 export type CreateSiteResult = {
@@ -65,6 +73,20 @@ export type ConfirmCountsResult = {
   windowsCreated: number
   alreadyConfirmed: boolean
 }
+
+export type LifecycleStage =
+  | 'land_identified'
+  | 'land_verified'
+  | 'species_configured'
+  | 'material_arranged'
+  | 'pits_dug'
+  | 'planted'
+  | 'submitted_for_acceptance'
+  | 'accepted'
+  | 'monitoring'
+  | 'archived'
+
+export type AuditWindowStatus = 'scheduled' | 'completed' | 'missed' | 'waived'
 
 type ProgramForWindows = {
   monitoring_years: number
@@ -145,6 +167,7 @@ export async function createPlantationProgram(
 
 export async function createPlantationSite(db: TransactionRunner, input: CreateSiteInput): Promise<CreateSiteResult> {
   return transaction(db, async (tx) => {
+    const species = normalizedSpeciesRows(input)
     const locationIdResult = await tx.query<{ location_id: string }>(
       `
         select allocate_plantation_location_id($1, $2, $3, $4) as location_id
@@ -212,12 +235,67 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
       throw new Error('Failed to create plantation site')
     }
 
+    await insertBatchSpecies(tx, site.id, species)
+
     return {
       id: site.id,
       locationId,
       status: site.status,
     }
   })
+}
+
+function normalizedSpeciesRows(input: CreateSiteInput): CreateSiteSpeciesInput[] {
+  const rows =
+    input.species && input.species.length > 0
+      ? input.species
+      : [
+          {
+            speciesName: input.speciesNotes || 'Mixed',
+            plantedCount: input.plantedCount,
+            spacingNotes: input.speciesNotes || null,
+          },
+        ]
+
+  return rows.map((row) => ({
+    speciesName: row.speciesName.trim(),
+    plantedCount: row.plantedCount,
+    spacingNotes: row.spacingNotes?.trim() || null,
+    placement: row.placement?.trim() || null,
+  }))
+}
+
+async function insertBatchSpecies(
+  tx: TransactionClient,
+  siteId: string,
+  species: CreateSiteSpeciesInput[],
+): Promise<void> {
+  for (const row of species) {
+    await tx.query(
+      `
+        insert into plantation_batch_species (
+          site_id,
+          species_name,
+          planted_count,
+          spacing_notes,
+          placement
+        ) values (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5
+        )
+      `,
+      [
+        siteId,
+        row.speciesName,
+        row.plantedCount,
+        row.spacingNotes ?? null,
+        row.placement ?? null,
+      ],
+    )
+  }
 }
 
 export async function confirmPlantationCounts(
@@ -311,6 +389,53 @@ export async function confirmPlantationCounts(
       alreadyConfirmed: false,
     }
   })
+}
+
+export async function advanceSiteStage(
+  db: Queryable,
+  input: {
+    siteId: string
+    toStage: LifecycleStage
+    actor: string
+    notes?: string | null
+  },
+): Promise<LifecycleStage> {
+  const result = await db.query<{ stage: LifecycleStage }>(
+    `
+      select advance_plantation_site_stage($1, $2, $3, $4) as stage
+    `,
+    [input.siteId, input.toStage, input.actor, input.notes ?? null],
+  )
+  const stage = result.rows[0]?.stage
+
+  if (!stage) {
+    throw new Error('Failed to advance site stage')
+  }
+
+  return stage
+}
+
+export async function advanceWindowState(
+  db: Queryable,
+  input: {
+    windowId: string
+    toState: Exclude<AuditWindowStatus, 'scheduled'>
+    actor: string
+  },
+): Promise<AuditWindowStatus> {
+  const result = await db.query<{ status: AuditWindowStatus }>(
+    `
+      select advance_plantation_window_state($1, $2, $3) as status
+    `,
+    [input.windowId, input.toState, input.actor],
+  )
+  const status = result.rows[0]?.status
+
+  if (!status) {
+    throw new Error('Failed to advance audit window state')
+  }
+
+  return status
 }
 
 export function buildAuditWindows(input: {
