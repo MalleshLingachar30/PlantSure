@@ -1,11 +1,6 @@
 import Link from 'next/link'
 import { Camera, ExternalLink, PanelTop } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import {
-  captureStageEvidence,
-  confirmSiteCounts,
-  recordAuditWindowCheck,
-} from '@/app/admin/actions'
 import { requireAdminMember } from '@/lib/auth-member'
 import {
   type AdminSiteDetail,
@@ -151,7 +146,7 @@ export default async function SitePage({
                   </p>
                 </div>
               ) : (
-                <form action={confirmSiteCounts} className="grid gap-5">
+                <form action={`/sites/${site.id}/confirm`} method="post" className="grid gap-5">
                   <p className="body-copy">
                     Once you confirm, these numbers go on the site board and cannot be
                     edited afterwards. Every future check compares against them.
@@ -271,7 +266,7 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
         {!window ? (
           <p className="body-copy">No open check windows are available.</p>
         ) : (
-          <form action={recordAuditWindowCheck} className="grid gap-5">
+          <form action={`/sites/${site.id}/checks`} method="post" className="grid gap-5">
             <input type="hidden" name="siteId" value={site.id} />
             <input type="hidden" name="windowId" value={window.id} />
 
@@ -443,7 +438,7 @@ function StageEvidenceForm({
   stage: 'pits_dug' | 'planted'
 }) {
   return (
-    <form action={captureStageEvidence} className="grid gap-4">
+    <form action={`/sites/${siteId}/stage-evidence`} method="post" className="grid gap-4">
       <input type="hidden" name="siteId" value={siteId} />
       <input type="hidden" name="stage" value={stage} />
 
