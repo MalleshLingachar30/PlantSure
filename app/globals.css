@@ -563,6 +563,32 @@
     background: color-mix(in srgb, var(--paper) 72%, var(--rule));
   }
 
+  .derived-location {
+    display: grid;
+    align-content: center;
+    gap: 0.1rem;
+    min-height: 44px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--alive-bg) 28%, var(--paper));
+    padding: 0.65rem 0.75rem;
+  }
+
+  .derived-location strong {
+    color: var(--ink);
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: var(--tracking-site-id);
+    line-height: 1.35;
+  }
+
+  .derived-location span:last-child {
+    color: var(--ink-soft);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
   .command-button,
   .secondary-button,
   .danger-button {

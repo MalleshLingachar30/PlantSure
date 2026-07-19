@@ -11,16 +11,13 @@ import {
 } from '@/lib/plantation-registration'
 import { requireAdminMember } from '@/lib/auth-member'
 import { withDatabase } from '@/lib/db'
+import { getKarnatakaGeographyByKey } from '@/lib/karnataka-geography'
 
 const registrationSchema = z.object({
   programName: z.string().trim().min(2),
   escalationEmail: z.string().trim().email(),
   siteName: z.string().trim().min(2),
-  district: z.string().trim().min(2),
-  taluk: z.string().trim().min(2),
-  village: z.string().trim().min(2),
-  districtCode: z.string().trim().length(3),
-  villageCode: z.string().trim().length(3),
+  geographyKey: z.string().trim().min(2),
   latitude: z.string().trim().regex(/^-?\d+(\.\d+)?$/),
   longitude: z.string().trim().regex(/^-?\d+(\.\d+)?$/),
   plantedCount: z.coerce.number().int().positive(),
@@ -41,6 +38,11 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
   }
 
   const input = parsed.data
+  const geography = getKarnatakaGeographyByKey(input.geographyKey)
+
+  if (!geography) {
+    redirect('/admin?error=registration')
+  }
 
   const site = await withDatabase(async (client) => {
     const member = await requireAdminMember(client)
@@ -52,13 +54,13 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
 
     return createPlantationSite(client, {
       programId: program.id,
-      stateCode: 'KA',
-      districtCode: input.districtCode,
-      villageCode: input.villageCode,
+      stateCode: geography.stateCode,
+      districtCode: geography.districtCode,
+      villageCode: geography.villageCode,
       name: input.siteName,
-      district: input.district,
-      taluk: input.taluk,
-      village: input.village,
+      district: geography.district,
+      taluk: geography.taluk,
+      village: geography.village,
       latitude: input.latitude,
       longitude: input.longitude,
       plantedCount: input.plantedCount,

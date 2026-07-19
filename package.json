@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:postgres",
-    "test:unit": "tsx --test tests/location-id.test.ts",
+    "test:unit": "tsx --test tests/location-id.test.ts tests/karnataka-geography.test.ts",
     "test:postgres": "tsx --test --test-concurrency=1 tests/postgres-invariants.test.ts tests/plantation-registration.test.ts",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

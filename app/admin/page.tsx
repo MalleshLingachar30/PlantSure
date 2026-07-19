@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { registerPilotSite } from './actions'
+import { GeographySelects } from '@/components/geography-selects'
 import { InternalShell } from '@/components/internal-shell'
 import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
 import { hasDatabaseUrl, withDatabase } from '@/lib/db'
+import { KARNATAKA_GEOGRAPHIES } from '@/lib/karnataka-geography'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,12 +93,11 @@ export default async function AdminPage({
 
               <fieldset className="form-grid" disabled={formDisabled}>
                 <legend className="form-legend">Site</legend>
-                <TextField label="Site name" name="siteName" defaultValue="Bangalore pilot" disabled={formDisabled} required />
-                <TextField label="District" name="district" defaultValue="Bengaluru Rural" disabled={formDisabled} required />
-                <TextField label="Taluk" name="taluk" defaultValue="Devanahalli" disabled={formDisabled} required />
-                <TextField label="Village" name="village" defaultValue="Gubbi" disabled={formDisabled} required />
-                <TextField label="District code" name="districtCode" defaultValue="BNR" maxLength={3} disabled={formDisabled} required />
-                <TextField label="Village code" name="villageCode" defaultValue="GUB" maxLength={3} disabled={formDisabled} required />
+                <TextField label="Site name" name="siteName" defaultValue="Gubbi pilot" disabled={formDisabled} required />
+                <GeographySelects
+                  options={KARNATAKA_GEOGRAPHIES}
+                  disabled={formDisabled}
+                />
               </fieldset>
 
               <fieldset className="form-grid" disabled={formDisabled}>
