@@ -37,13 +37,16 @@ export type CreateSiteInput = {
   district: string
   taluk: string
   village: string
-  latitude: string
-  longitude: string
-  plantedCount: number
   plantingDate: string
   plantingPhotoUrls?: string[]
-  species?: CreateSiteSpeciesInput[]
-  speciesNotes?: string | null
+  species: CreateSiteSpeciesInput[]
+  landOwnership: LandOwnership
+  landCustodian?: string | null
+  approvalReference?: string | null
+  isSharedParcel?: boolean
+  watchAndWard?: boolean
+  boundaryPoints: BoundaryPointInput[]
+  plantationType: PlantationType
   createdByMemberId: string
 }
 
@@ -53,6 +56,15 @@ export type CreateSiteSpeciesInput = {
   spacingNotes?: string | null
   placement?: string | null
 }
+
+export type BoundaryPointInput = {
+  latitude: string
+  longitude: string
+}
+
+export type LandOwnership = 'government' | 'private' | 'institutional' | 'other'
+
+export type PlantationType = 'block' | 'bund_only' | 'bund_and_block'
 
 export type CreateSiteResult = {
   id: string
@@ -87,6 +99,18 @@ export type LifecycleStage =
   | 'archived'
 
 export type AuditWindowStatus = 'scheduled' | 'completed' | 'missed' | 'waived'
+
+export type StageEvidenceInput = {
+  siteId: string
+  stage: Extract<LifecycleStage, 'pits_dug' | 'planted'>
+  photoUrls: string[]
+  capturedAt: string
+  uploadedByMemberId: string
+  latitude?: string | null
+  longitude?: string | null
+  gpsAccuracy?: string | null
+  caption?: string | null
+}
 
 type ProgramForWindows = {
   monitoring_years: number
@@ -168,6 +192,14 @@ export async function createPlantationProgram(
 export async function createPlantationSite(db: TransactionRunner, input: CreateSiteInput): Promise<CreateSiteResult> {
   return transaction(db, async (tx) => {
     const species = normalizedSpeciesRows(input)
+    const boundaryPoints = normalizedBoundaryPoints(input.boundaryPoints)
+    const firstBoundaryPoint = boundaryPoints[0]
+    const plantedCount = species.reduce((total, row) => total + row.plantedCount, 0)
+
+    if (!firstBoundaryPoint) {
+      throw new Error('At least one boundary point is required')
+    }
+
     const locationIdResult = await tx.query<{ location_id: string }>(
       `
         select allocate_plantation_location_id($1, $2, $3, $4) as location_id
@@ -195,6 +227,13 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
           planting_date,
           planting_photo_urls,
           species_notes,
+          land_ownership,
+          land_custodian,
+          approval_reference,
+          is_shared_parcel,
+          watch_and_ward,
+          boundary_points,
+          plantation_type,
           created_by_member_id
         ) values (
           $1,
@@ -209,7 +248,14 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
           $10,
           $11,
           $12,
-          $13
+          $13,
+          $14,
+          $15,
+          $16,
+          $17,
+          $18,
+          $19,
+          $20
         )
         returning id, status
       `,
@@ -220,12 +266,19 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
         input.district,
         input.taluk,
         input.village,
-        input.latitude,
-        input.longitude,
-        input.plantedCount,
+        firstBoundaryPoint.lat,
+        firstBoundaryPoint.lng,
+        plantedCount,
         input.plantingDate,
         JSON.stringify(input.plantingPhotoUrls ?? []),
-        input.speciesNotes ?? null,
+        species.map((row) => row.speciesName).join(', '),
+        input.landOwnership,
+        input.landCustodian ?? null,
+        input.approvalReference ?? null,
+        input.isSharedParcel ?? false,
+        input.watchAndWard ?? false,
+        JSON.stringify(boundaryPoints),
+        input.plantationType,
         input.createdByMemberId,
       ],
     )
@@ -236,6 +289,7 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
     }
 
     await insertBatchSpecies(tx, site.id, species)
+    await advanceSiteThroughIntakeStages(tx, site.id, input.createdByMemberId)
 
     return {
       id: site.id,
@@ -245,24 +299,78 @@ export async function createPlantationSite(db: TransactionRunner, input: CreateS
   })
 }
 
-function normalizedSpeciesRows(input: CreateSiteInput): CreateSiteSpeciesInput[] {
-  const rows =
-    input.species && input.species.length > 0
-      ? input.species
-      : [
-          {
-            speciesName: input.speciesNotes || 'Mixed',
-            plantedCount: input.plantedCount,
-            spacingNotes: input.speciesNotes || null,
-          },
-        ]
+async function advanceSiteThroughIntakeStages(
+  tx: TransactionClient,
+  siteId: string,
+  actor: string,
+): Promise<void> {
+  const intakeStages: LifecycleStage[] = [
+    'land_verified',
+    'species_configured',
+    'material_arranged',
+  ]
 
-  return rows.map((row) => ({
+  for (const stage of intakeStages) {
+    await tx.query(
+      `
+        select advance_plantation_site_stage($1, $2, $3, $4)
+      `,
+      [siteId, stage, actor, 'Registered intake fields'],
+    )
+  }
+}
+
+function normalizedSpeciesRows(input: CreateSiteInput): CreateSiteSpeciesInput[] {
+  const rows = input.species
+    .map((row) => ({
+      speciesName: row.speciesName.trim(),
+      plantedCount: row.plantedCount,
+      spacingNotes: row.spacingNotes?.trim() || null,
+      placement: row.placement?.trim() || null,
+    }))
+    .filter((row) => row.speciesName.length > 0 || row.plantedCount > 0)
+
+  if (rows.length === 0) {
+    throw new Error('At least one species row is required')
+  }
+
+  for (const row of rows) {
+    if (row.speciesName.length === 0 || !Number.isInteger(row.plantedCount) || row.plantedCount <= 0) {
+      throw new Error('Each species row requires a species name and positive count')
+    }
+  }
+
+  return rows
+}
+
+function normalizedBoundaryPoints(points: BoundaryPointInput[]): Array<{ lat: number; lng: number }> {
+  const rows = points
+    .map((point) => ({
+      lat: Number(point.latitude),
+      lng: Number(point.longitude),
+    }))
+    .filter((point) => Number.isFinite(point.lat) || Number.isFinite(point.lng))
+
+  if (rows.length < 3) {
+    throw new Error('At least three boundary points are required')
+  }
+
+  for (const point of rows) {
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
+      throw new Error('Each boundary point requires latitude and longitude')
+    }
+  }
+
+  return rows
+}
+
+function normalizedSpeciesRow(row: CreateSiteSpeciesInput): CreateSiteSpeciesInput {
+  return {
     speciesName: row.speciesName.trim(),
     plantedCount: row.plantedCount,
     spacingNotes: row.spacingNotes?.trim() || null,
     placement: row.placement?.trim() || null,
-  }))
+  }
 }
 
 async function insertBatchSpecies(
@@ -271,6 +379,8 @@ async function insertBatchSpecies(
   species: CreateSiteSpeciesInput[],
 ): Promise<void> {
   for (const row of species) {
+    const speciesRow = normalizedSpeciesRow(row)
+
     await tx.query(
       `
         insert into plantation_batch_species (
@@ -289,10 +399,10 @@ async function insertBatchSpecies(
       `,
       [
         siteId,
-        row.speciesName,
-        row.plantedCount,
-        row.spacingNotes ?? null,
-        row.placement ?? null,
+        speciesRow.speciesName,
+        speciesRow.plantedCount,
+        speciesRow.spacingNotes ?? null,
+        speciesRow.placement ?? null,
       ],
     )
   }
@@ -436,6 +546,65 @@ export async function advanceWindowState(
   }
 
   return status
+}
+
+export async function recordStageEvidenceAndAdvance(
+  db: TransactionRunner,
+  input: StageEvidenceInput,
+): Promise<LifecycleStage> {
+  return transaction(db, async (tx) => {
+    const urls = input.photoUrls.map((url) => url.trim()).filter(Boolean)
+
+    if (urls.length === 0) {
+      throw new Error('At least one photo is required')
+    }
+
+    for (const url of urls) {
+      await tx.query(
+        `
+          insert into plantation_evidence (
+            site_id,
+            stage,
+            url,
+            captured_at,
+            latitude,
+            longitude,
+            gps_accuracy,
+            caption,
+            uploaded_by
+          ) values (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9
+          )
+        `,
+        [
+          input.siteId,
+          input.stage,
+          url,
+          input.capturedAt,
+          input.latitude || null,
+          input.longitude || null,
+          input.gpsAccuracy || null,
+          input.caption || null,
+          input.uploadedByMemberId,
+        ],
+      )
+    }
+
+    return advanceSiteStage(tx, {
+      siteId: input.siteId,
+      toStage: input.stage,
+      actor: input.uploadedByMemberId,
+      notes: `${urls.length} photo${urls.length === 1 ? '' : 's'} recorded`,
+    })
+  })
 }
 
 export function buildAuditWindows(input: {

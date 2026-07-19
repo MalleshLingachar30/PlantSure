@@ -563,6 +563,138 @@
     background: color-mix(in srgb, var(--paper) 72%, var(--rule));
   }
 
+  .check-field {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    padding: 0.65rem 0.75rem;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .check-field input {
+    height: 16px;
+    width: 16px;
+    accent-color: var(--ink);
+  }
+
+  .form-section-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .field-hint {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .derived-total {
+    display: inline-grid;
+    min-width: 118px;
+    gap: 0.05rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--alive-bg) 28%, var(--paper));
+    padding: 0.55rem 0.7rem;
+  }
+
+  .derived-total strong {
+    color: var(--ink);
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+
+  .repeat-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .repeat-row {
+    display: grid;
+    gap: 0.75rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 0.75rem;
+  }
+
+  .species-repeat-row,
+  .boundary-repeat-row,
+  .audit-species-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .species-repeat-row .field,
+  .boundary-repeat-row .field,
+  .audit-species-row .field {
+    grid-column: 1 / -1;
+  }
+
+  .repeat-index {
+    display: inline-flex;
+    height: 30px;
+    width: 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    font-size: 12px;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    height: 42px;
+    width: 42px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--ink-soft);
+  }
+
+  .icon-button:hover {
+    color: var(--overdue);
+  }
+
+  .icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  @media (min-width: 720px) {
+    .species-repeat-row {
+      grid-template-columns: minmax(180px, 1.2fr) minmax(110px, 0.5fr) minmax(160px, 1fr) auto;
+    }
+
+    .boundary-repeat-row {
+      grid-template-columns: 30px minmax(160px, 1fr) minmax(160px, 1fr) auto;
+    }
+
+    .audit-species-row {
+      grid-template-columns: minmax(180px, 1fr) minmax(140px, 220px);
+      align-items: center;
+    }
+
+    .species-repeat-row .field,
+    .boundary-repeat-row .field,
+    .audit-species-row .field {
+      grid-column: auto;
+    }
+  }
+
   .derived-location {
     display: grid;
     align-content: center;
@@ -679,6 +811,49 @@
     width: 4px;
     border-radius: 999px;
     background: var(--ink-faint);
+  }
+
+  .stage-evidence-list {
+    display: grid;
+    gap: 0.65rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1rem;
+  }
+
+  .stage-evidence-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    padding: 0.8rem 0.9rem;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .stage-evidence-item:hover {
+    border-color: var(--rule-strong);
+    background: color-mix(in srgb, var(--paper) 72%, var(--card));
+  }
+
+  .stage-evidence-item > span {
+    display: grid;
+    min-width: 0;
+    gap: 0.1rem;
+  }
+
+  .stage-evidence-item strong {
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .stage-evidence-item span span:not(.eyebrow) {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.35;
   }
 
   .data-table {

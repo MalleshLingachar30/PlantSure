@@ -13,6 +13,7 @@ export type AdminSiteSummary = {
   plantingDate: string
   speciesNotes: string | null
   status: string
+  stage: string
   monitoringStart: string | null
   monitoringEnd: string | null
   windowsCount: number
@@ -30,6 +31,7 @@ export type AdminOverview =
     }
 
 export type AdminAuditWindow = {
+  id: string
   sequenceNumber: number
   cycleLabel: string
   dueDate: string
@@ -39,6 +41,21 @@ export type AdminAuditWindow = {
 
 export type AdminSiteDetail = AdminSiteSummary & {
   windows: AdminAuditWindow[]
+  stageEvidence: AdminStageEvidence[]
+  species: AdminBatchSpecies[]
+}
+
+export type AdminStageEvidence = {
+  id: string
+  stage: string
+  url: string
+  capturedAt: string
+  caption: string | null
+}
+
+export type AdminBatchSpecies = {
+  speciesName: string
+  plantedCount: number
 }
 
 export type PublicSiteDetail = AdminSiteSummary & {
@@ -93,6 +110,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       planting_date: Date | string
       species_notes: string | null
       status: string
+      stage: string
       monitoring_start: Date | string | null
       monitoring_end: Date | string | null
       windows_count: string
@@ -115,6 +133,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
           sites.planting_date,
           sites.species_notes,
           sites.status,
+          sites.stage::text,
           sites.monitoring_start,
           sites.monitoring_end,
           count(distinct windows.id)::text as windows_count,
@@ -145,6 +164,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,
       status: row.status,
+      stage: row.stage,
       monitoringStart: row.monitoring_start ? dateString(row.monitoring_start) : null,
       monitoringEnd: row.monitoring_end ? dateString(row.monitoring_end) : null,
       windowsCount: Number(row.windows_count),
@@ -177,6 +197,7 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
       planting_date: Date | string
       species_notes: string | null
       status: string
+      stage: string
       monitoring_start: Date | string | null
       monitoring_end: Date | string | null
       windows_count: string
@@ -199,6 +220,7 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
           sites.planting_date,
           sites.species_notes,
           sites.status,
+          sites.stage::text,
           sites.monitoring_start,
           sites.monitoring_end,
           count(distinct windows.id)::text as windows_count,
@@ -234,6 +256,7 @@ export async function getAdminSite(siteId: string): Promise<AdminSiteSummary | n
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,
       status: row.status,
+      stage: row.stage,
       monitoringStart: row.monitoring_start ? dateString(row.monitoring_start) : null,
       monitoringEnd: row.monitoring_end ? dateString(row.monitoring_end) : null,
       windowsCount: Number(row.windows_count),
@@ -249,8 +272,9 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     return null
   }
 
-  const windows = await withDatabase(async (client) => {
-    const result = await client.query<{
+  const { windows, stageEvidence, species } = await withDatabase(async (client) => {
+    const windowsResult = await client.query<{
+      id: string
       sequence_number: number
       cycle_label: string
       due_date: Date | string
@@ -258,24 +282,66 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       status: string
     }>(
       `
-        select sequence_number, cycle_label, due_date, grace_until, status
+        select id, sequence_number, cycle_label, due_date, grace_until, status
         from plantation_audit_windows
         where site_id = $1
         order by sequence_number
       `,
       [siteId],
     )
+    const evidenceResult = await client.query<{
+      id: string
+      stage: string
+      url: string
+      captured_at: Date | string
+      caption: string | null
+    }>(
+      `
+        select id, stage::text, url, captured_at, caption
+        from plantation_evidence
+        where site_id = $1
+          and stage in ('pits_dug', 'planted')
+        order by captured_at desc, received_at desc
+      `,
+      [siteId],
+    )
+    const speciesResult = await client.query<{
+      species_name: string
+      planted_count: number
+    }>(
+      `
+        select species_name, planted_count
+        from plantation_batch_species
+        where site_id = $1
+        order by species_name
+      `,
+      [siteId],
+    )
 
-    return result.rows.map((row) => ({
-      sequenceNumber: row.sequence_number,
-      cycleLabel: row.cycle_label,
-      dueDate: dateString(row.due_date),
-      graceUntil: dateString(row.grace_until),
-      status: row.status,
-    }))
+    return {
+      windows: windowsResult.rows.map((row) => ({
+        id: row.id,
+        sequenceNumber: row.sequence_number,
+        cycleLabel: row.cycle_label,
+        dueDate: dateString(row.due_date),
+        graceUntil: dateString(row.grace_until),
+        status: row.status,
+      })),
+      stageEvidence: evidenceResult.rows.map((row) => ({
+        id: row.id,
+        stage: row.stage,
+        url: row.url,
+        capturedAt: timestampDateString(row.captured_at),
+        caption: row.caption,
+      })),
+      species: speciesResult.rows.map((row) => ({
+        speciesName: row.species_name,
+        plantedCount: row.planted_count,
+      })),
+    }
   })
 
-  return { ...site, windows }
+  return { ...site, windows, stageEvidence, species }
 }
 
 export async function getPublicSiteByLocationId(
@@ -302,6 +368,7 @@ export async function getPublicSiteByLocationId(
       planting_date: Date | string
       species_notes: string | null
       status: string
+      stage: string
       monitoring_start: Date | string | null
       monitoring_end: Date | string | null
       windows_count: string
@@ -324,6 +391,7 @@ export async function getPublicSiteByLocationId(
           sites.planting_date,
           sites.species_notes,
           sites.status,
+          sites.stage::text,
           sites.monitoring_start,
           sites.monitoring_end,
           count(distinct windows.id)::text as windows_count,
@@ -421,6 +489,7 @@ export async function getPublicSiteByLocationId(
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,
       status: row.status,
+      stage: row.stage,
       monitoringStart: row.monitoring_start ? dateString(row.monitoring_start) : null,
       monitoringEnd: row.monitoring_end ? dateString(row.monitoring_end) : null,
       windowsCount: Number(row.windows_count),

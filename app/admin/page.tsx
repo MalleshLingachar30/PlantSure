@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { registerPilotSite } from './actions'
 import { GeographySelects } from '@/components/geography-selects'
 import { InternalShell } from '@/components/internal-shell'
+import { RegistrationDetails } from '@/components/registration-details'
 import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
 import { hasDatabaseUrl, withDatabase } from '@/lib/db'
@@ -103,17 +104,6 @@ export default async function AdminPage({
 
               <fieldset className="form-grid" disabled={formDisabled}>
                 <legend className="form-legend">Baseline</legend>
-                <TextField label="Latitude" name="latitude" defaultValue="13.312000" inputMode="decimal" disabled={formDisabled} required />
-                <TextField label="Longitude" name="longitude" defaultValue="76.941000" inputMode="decimal" disabled={formDisabled} required />
-                <TextField
-                  label="Planted count"
-                  name="plantedCount"
-                  type="number"
-                  min={1}
-                  defaultValue="600"
-                  disabled={formDisabled}
-                  required
-                />
                 <TextField label="Planting date" name="plantingDate" type="date" defaultValue="2026-07-15" disabled={formDisabled} required />
                 <label className="field sm:col-span-2">
                   <span>Planting photo URLs</span>
@@ -125,17 +115,9 @@ export default async function AdminPage({
                     disabled={formDisabled}
                   />
                 </label>
-                <label className="field sm:col-span-2">
-                  <span>Species notes</span>
-                  <textarea
-                    name="speciesNotes"
-                    rows={3}
-                    className="input resize-none"
-                    defaultValue="Mixed native"
-                    disabled={formDisabled}
-                  />
-                </label>
               </fieldset>
+
+              <RegistrationDetails disabled={formDisabled} />
 
               <div className="flex justify-end border-t pt-5" style={{ borderColor: 'var(--rule)' }}>
                 <button className="command-button" type="submit" disabled={formDisabled}>
