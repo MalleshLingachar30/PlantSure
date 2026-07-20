@@ -4,11 +4,13 @@ import { readdir, readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import { Client } from 'pg'
 import {
+  acceptSiteAsSponsor,
   buildAuditWindows,
   confirmPlantationCounts,
   createPlantationProgram,
   createPlantationSite,
   recordStageEvidenceAndAdvance,
+  submitSiteForAcceptance,
 } from '../lib/plantation-registration'
 import {
   markMissedAuditWindows,
@@ -17,6 +19,7 @@ import {
 
 const migrationsPath = new URL('../drizzle/', import.meta.url)
 const memberId = '00000000-0000-4000-8000-000000000020'
+const sponsorMemberId = '00000000-0000-4000-8000-000000000021'
 
 type MigratedDatabase = {
   client: Client
@@ -83,9 +86,39 @@ async function createProgram(client: Client): Promise<string> {
     organizationId: randomUUID(),
     name: 'Green Karnataka 2026',
     escalationEmail: 'iaft@example.com',
+    ownerApproverEmail: 'owner@example.com',
   })
 
   return program.id
+}
+
+async function insertMember(
+  client: Client,
+  id: string,
+  role: 'admin' | 'manager' | 'auditor' | 'technician',
+  email: string,
+): Promise<void> {
+  await client.query(
+    `
+      insert into plantation_members (
+        id,
+        clerk_user_id,
+        email,
+        display_name,
+        role
+      ) values (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5
+      )
+      on conflict (id) do update set
+        email = excluded.email,
+        role = excluded.role
+    `,
+    [id, `test:${id}`, email, `Test ${role}`, role],
+  )
 }
 
 async function createSite(client: Client, programId: string, name = 'Gubbi site'): Promise<string> {
@@ -111,6 +144,33 @@ async function createSite(client: Client, programId: string, name = 'Gubbi site'
   })
 
   return site.id
+}
+
+async function advanceSiteToAccepted(client: Client, siteId: string): Promise<void> {
+  await insertMember(client, sponsorMemberId, 'technician', 'owner@example.com')
+  await recordStageEvidenceAndAdvance(client, {
+    siteId,
+    stage: 'pits_dug',
+    photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-1.jpg'],
+    capturedAt: '2026-07-10T09:30:00',
+    uploadedByMemberId: memberId,
+  })
+  await recordStageEvidenceAndAdvance(client, {
+    siteId,
+    stage: 'planted',
+    photoUrls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+    capturedAt: '2026-07-15T11:00:00',
+    uploadedByMemberId: memberId,
+  })
+  await submitSiteForAcceptance(client, {
+    siteId,
+    submittedByMemberId: memberId,
+  })
+  await acceptSiteAsSponsor(client, {
+    siteId,
+    acceptedByMemberId: sponsorMemberId,
+    acceptedRole: 'primary',
+  })
 }
 
 test('buildAuditWindows creates the five-year quarterly schedule from the monitoring start date', () => {
@@ -334,6 +394,65 @@ test('stage evidence capture advances pits and planted stages with photos', asyn
   })
 })
 
+test('acceptance submission and owner approval advance the site into accepted stage', async () => {
+  await withMigratedDatabase(async ({ client }) => {
+    const programId = await createProgram(client)
+    const siteId = await createSite(client, programId)
+    await insertMember(client, sponsorMemberId, 'technician', 'owner@example.com')
+
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'pits_dug',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-1.jpg'],
+      capturedAt: '2026-07-10T09:30:00',
+      uploadedByMemberId: memberId,
+    })
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'planted',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+      capturedAt: '2026-07-15T11:00:00',
+      uploadedByMemberId: memberId,
+    })
+
+    const submitted = await submitSiteForAcceptance(client, {
+      siteId,
+      submittedByMemberId: memberId,
+    })
+    const accepted = await acceptSiteAsSponsor(client, {
+      siteId,
+      acceptedByMemberId: sponsorMemberId,
+      acceptedRole: 'primary',
+    })
+
+    const acceptance = await client.query<{
+      accepted_as_admin: boolean
+      accepted_role: string | null
+      accepted_at: Date | string | null
+      accepted_snapshot: { species?: unknown[] } | null
+    }>(
+      `
+        select accepted_as_admin, accepted_role::text, accepted_at, accepted_snapshot
+        from plantation_acceptances
+        where site_id = $1
+      `,
+      [siteId],
+    )
+    const site = await client.query<{ stage: string }>(
+      `select stage::text from plantation_sites where id = $1`,
+      [siteId],
+    )
+
+    assert.equal(submitted, 'submitted_for_acceptance')
+    assert.equal(accepted, 'accepted')
+    assert.equal(site.rows[0]?.stage, 'accepted')
+    assert.equal(acceptance.rows[0]?.accepted_as_admin, false)
+    assert.equal(acceptance.rows[0]?.accepted_role, 'primary')
+    assert.ok(acceptance.rows[0]?.accepted_at)
+    assert.equal(Array.isArray(acceptance.rows[0]?.accepted_snapshot?.species), true)
+  })
+})
+
 test('concurrent site registrations allocate unique Location IDs', async () => {
   await withMigratedDatabase(async ({ client, schemaName }) => {
     const programIds: string[] = []
@@ -397,10 +516,12 @@ test('confirm counts locks the site and creates twenty windows with generated ev
   await withMigratedDatabase(async ({ client }) => {
     const programId = await createProgram(client)
     const siteId = await createSite(client, programId)
+    await advanceSiteToAccepted(client, siteId)
 
     const confirmation = await confirmPlantationCounts(client, {
       siteId,
       monitoringStart: '2026-07-15',
+      actor: memberId,
     })
 
     assert.deepEqual(confirmation, {
@@ -414,9 +535,10 @@ test('confirm counts locks the site and creates twenty windows with generated ev
 
     const site = await client.query<{
       status: string
+      stage: string
       monitoring_start: Date | string
       monitoring_end: Date | string
-    }>(`select status, monitoring_start, monitoring_end from plantation_sites where id = $1`, [siteId])
+    }>(`select status, stage::text, monitoring_start, monitoring_end from plantation_sites where id = $1`, [siteId])
     const windows = await client.query<{
       sequence_number: number
       cycle_label: string
@@ -443,6 +565,7 @@ test('confirm counts locks the site and creates twenty windows with generated ev
     )
 
     assert.equal(site.rows[0]?.status, 'counts_confirmed')
+    assert.equal(site.rows[0]?.stage, 'monitoring')
     assert.equal(dateValue(site.rows[0]?.monitoring_start), '2026-07-15')
     assert.equal(dateValue(site.rows[0]?.monitoring_end), '2031-07-15')
     assert.equal(windows.rows.length, 20)
@@ -463,14 +586,17 @@ test('confirm counts is idempotent and does not create duplicate windows', async
   await withMigratedDatabase(async ({ client }) => {
     const programId = await createProgram(client)
     const siteId = await createSite(client, programId)
+    await advanceSiteToAccepted(client, siteId)
 
     await confirmPlantationCounts(client, {
       siteId,
       monitoringStart: '2026-07-15',
+      actor: memberId,
     })
     const second = await confirmPlantationCounts(client, {
       siteId,
       monitoringStart: '2026-07-16',
+      actor: memberId,
     })
     const windows = await client.query<{ count: string }>(
       `select count(*)::text from plantation_audit_windows where site_id = $1`,
@@ -522,9 +648,11 @@ test('audit check records per-species results and completes the window', async (
       createdByMemberId: memberId,
     })
 
+    await advanceSiteToAccepted(client, site.id)
     await confirmPlantationCounts(client, {
       siteId: site.id,
       monitoringStart: '2026-07-15',
+      actor: memberId,
     })
 
     const window = await client.query<{ id: string }>(
@@ -609,10 +737,12 @@ test('cron marks overdue scheduled windows as missed', async () => {
   await withMigratedDatabase(async ({ client }) => {
     const programId = await createProgram(client)
     const siteId = await createSite(client, programId)
+    await advanceSiteToAccepted(client, siteId)
 
     await confirmPlantationCounts(client, {
       siteId,
       monitoringStart: '2026-07-15',
+      actor: memberId,
     })
 
     const result = await markMissedAuditWindows(client, {

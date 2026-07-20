@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireAdminMember } from '@/lib/auth-member'
+import { requirePlantationMember } from '@/lib/auth-member'
 import { withDatabase } from '@/lib/db'
 import { recordStageEvidenceAndAdvance } from '@/lib/plantation-registration'
 
@@ -43,7 +43,7 @@ export async function POST(
 
   try {
     await withDatabase(async (client) => {
-      const member = await requireAdminMember(client)
+      const member = await requirePlantationMember(client, ['admin', 'manager'])
 
       return recordStageEvidenceAndAdvance(client, {
         siteId,

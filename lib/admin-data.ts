@@ -42,6 +42,7 @@ export type AdminAuditWindow = {
 export type AdminSiteDetail = AdminSiteSummary & {
   latitude: string
   longitude: string
+  ownerApproverEmail: string | null
   plantingPhotoUrls: string[]
   landOwnership: string
   landCustodian: string | null
@@ -53,6 +54,17 @@ export type AdminSiteDetail = AdminSiteSummary & {
   windows: AdminAuditWindow[]
   stageEvidence: AdminStageEvidence[]
   species: AdminBatchSpecies[]
+  acceptance: AdminSiteAcceptance | null
+}
+
+export type AdminSiteAcceptance = {
+  submittedAt: string
+  submittedByName: string | null
+  acceptedAt: string | null
+  acceptedByName: string | null
+  acceptedAsAdmin: boolean
+  rejectedAt: string | null
+  rejectionReason: string | null
 }
 
 export type AdminBoundaryPoint = {
@@ -303,10 +315,12 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     windows,
     stageEvidence,
     species,
+    acceptance,
   } = await withDatabase(async (client) => {
     const detailResult = await client.query<{
       latitude: string
       longitude: string
+      owner_approver_email: string | null
       planting_photo_urls: string[] | null
       land_ownership: string
       land_custodian: string | null
@@ -320,6 +334,11 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         select
           latitude::text,
           longitude::text,
+          (
+            select programs.owner_approver_email
+            from plantation_programs programs
+            where programs.id = plantation_sites.program_id
+          ) as owner_approver_email,
           planting_photo_urls,
           land_ownership::text,
           land_custodian,
@@ -379,6 +398,31 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       `,
       [siteId],
     )
+    const acceptanceResult = await client.query<{
+      submitted_at: Date | string
+      submitted_by_name: string | null
+      accepted_at: Date | string | null
+      accepted_by_name: string | null
+      accepted_as_admin: boolean
+      rejected_at: Date | string | null
+      rejection_reason: string | null
+    }>(
+      `
+        select
+          acceptances.submitted_at,
+          submitter.display_name as submitted_by_name,
+          acceptances.accepted_at,
+          accepter.display_name as accepted_by_name,
+          acceptances.accepted_as_admin,
+          acceptances.rejected_at,
+          acceptances.rejection_reason
+        from plantation_acceptances acceptances
+        join plantation_members submitter on submitter.id = acceptances.submitted_by
+        left join plantation_members accepter on accepter.id = acceptances.accepted_by
+        where acceptances.site_id = $1
+      `,
+      [siteId],
+    )
 
     return {
       detail: detailResult.rows[0],
@@ -403,6 +447,21 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         spacingNotes: row.spacing_notes,
         placement: row.placement,
       })),
+      acceptance: acceptanceResult.rows[0]
+        ? {
+            submittedAt: timestampDateString(acceptanceResult.rows[0].submitted_at),
+            submittedByName: acceptanceResult.rows[0].submitted_by_name,
+            acceptedAt: acceptanceResult.rows[0].accepted_at
+              ? timestampDateString(acceptanceResult.rows[0].accepted_at)
+              : null,
+            acceptedByName: acceptanceResult.rows[0].accepted_by_name,
+            acceptedAsAdmin: acceptanceResult.rows[0].accepted_as_admin,
+            rejectedAt: acceptanceResult.rows[0].rejected_at
+              ? timestampDateString(acceptanceResult.rows[0].rejected_at)
+              : null,
+            rejectionReason: acceptanceResult.rows[0].rejection_reason,
+          }
+        : null,
     }
   })
 
@@ -414,6 +473,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     ...site,
     latitude: detail.latitude,
     longitude: detail.longitude,
+    ownerApproverEmail: detail.owner_approver_email,
     plantingPhotoUrls: detail.planting_photo_urls ?? [],
     landOwnership: detail.land_ownership,
     landCustodian: detail.land_custodian,
@@ -425,6 +485,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     windows,
     stageEvidence,
     species,
+    acceptance,
   }
 }
 

@@ -90,6 +90,13 @@ export default async function AdminPage({
                   disabled={formDisabled}
                   required
                 />
+                <TextField
+                  label="Owner approval email"
+                  name="ownerApproverEmail"
+                  type="email"
+                  disabled={formDisabled}
+                  required
+                />
               </fieldset>
 
               <fieldset className="form-grid" disabled={formDisabled}>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { Camera, ExternalLink, PanelTop } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { requireAdminMember } from '@/lib/auth-member'
+import { requirePlantationMember } from '@/lib/auth-member'
 import {
   type AdminSiteDetail,
   type AdminAuditWindow,
@@ -22,14 +22,34 @@ export default async function SitePage({
   searchParams,
 }: {
   params: Promise<{ siteId: string }>
-  searchParams: Promise<{ confirmed?: string; stage?: string; checked?: string; error?: string }>
+  searchParams: Promise<{
+    confirmed?: string
+    submitted?: string
+    approved?: string
+    stage?: string
+    checked?: string
+    error?: string
+  }>
 }) {
-  const [{ siteId }, { confirmed, stage, checked, error }] = await Promise.all([params, searchParams])
-  const member = await withDatabase(requireAdminMember)
+  const [{ siteId }, { confirmed, submitted, approved, stage, checked, error }] = await Promise.all([
+    params,
+    searchParams,
+  ])
+  const member = await withDatabase((client) => requirePlantationMember(client))
 
   const site = await getAdminSiteDetail(siteId)
 
   if (!site) {
+    notFound()
+  }
+
+  const isOwnerApprover =
+    member.role === 'technician' &&
+    Boolean(member.email) &&
+    Boolean(site.ownerApproverEmail) &&
+    member.email!.trim().toLowerCase() === site.ownerApproverEmail!.trim().toLowerCase()
+
+  if (member.role === 'technician' && !isOwnerApprover) {
     notFound()
   }
 
@@ -93,6 +113,18 @@ export default async function SitePage({
             <p className="mt-2 font-medium">Twenty checks were written to the register.</p>
           </div>
         )}
+        {submitted && (
+          <div className="admin-notice mt-6" role="status">
+            <p className="eyebrow">Submitted</p>
+            <p className="mt-2 font-medium">The baseline was submitted for sponsor acceptance.</p>
+          </div>
+        )}
+        {approved && (
+          <div className="admin-notice mt-6" role="status">
+            <p className="eyebrow">Approved</p>
+            <p className="mt-2 font-medium">The project owner approval was recorded from a separate account.</p>
+          </div>
+        )}
         {stage && (
           <div className="admin-notice mt-6" role="status">
             <p className="eyebrow">Evidence saved</p>
@@ -112,7 +144,7 @@ export default async function SitePage({
           </div>
         )}
 
-        <LifecycleEvidencePanel site={site} />
+        <LifecycleEvidencePanel site={site} isOwnerApprover={isOwnerApprover} />
 
         <div className="mt-7 grid gap-7 lg:grid-cols-[380px_1fr]">
           <section className="admin-panel" aria-labelledby="gate-heading">
@@ -146,6 +178,15 @@ export default async function SitePage({
                   <p className="body-copy">
                     These planting details are confirmed. The planted count is locked
                     and future checks compare against it.
+                  </p>
+                </div>
+              ) : !stageReached(site.stage, 'accepted') ? (
+                <div className="grid gap-3">
+                  <p className="body-copy">
+                    Submit and accept the baseline before the monitoring schedule can be created.
+                  </p>
+                  <p className="body-copy text-[14px]">
+                    Current lifecycle stage: {stageLabel(site.stage)}.
                   </p>
                 </div>
               ) : (
@@ -261,7 +302,13 @@ type LifecycleEvidenceLink = {
   caption?: string | null
 }
 
-function LifecycleEvidencePanel({ site }: { site: AdminSiteDetail }) {
+function LifecycleEvidencePanel({
+  site,
+  isOwnerApprover,
+}: {
+  site: AdminSiteDetail
+  isOwnerApprover: boolean
+}) {
   const nextStage = nextEvidenceStage(site.stage)
   const pitsEvidence = site.stageEvidence.filter((evidence) => evidence.stage === 'pits_dug')
   const plantedEvidence = site.stageEvidence.filter((evidence) => evidence.stage === 'planted')
@@ -430,7 +477,7 @@ function LifecycleEvidencePanel({ site }: { site: AdminSiteDetail }) {
           stage="submitted_for_acceptance"
           siteStage={site.stage}
           title="Submitted"
-          summary="Pilot acceptance is still handled on paper; the system stage is visible here."
+          summary="The registrar submits the baseline; the project owner must approve from a different account."
           entries={[
             {
               label: 'Submission',
@@ -438,25 +485,81 @@ function LifecycleEvidencePanel({ site }: { site: AdminSiteDetail }) {
                 ? 'Submitted for acceptance'
                 : 'Not submitted',
             },
+            {
+              label: 'Submitted on',
+              value: site.acceptance?.submittedAt ?? 'Not recorded',
+            },
+            {
+              label: 'Owner approver',
+              value: site.ownerApproverEmail ?? 'Not configured',
+            },
           ]}
           evidence={[]}
           emptyEvidence="No in-system acceptance packet recorded yet."
-        />
+        >
+          {site.stage === 'planted' && (
+            <AcceptanceActionForm
+              siteId={site.id}
+              action="submit"
+              title="Submit baseline"
+              description="Record the registrar submission and move the site into sponsor review."
+              buttonLabel="Submit for acceptance"
+            />
+          )}
+        </LifecycleDetailStep>
 
         <LifecycleDetailStep
           stage="accepted"
           siteStage={site.stage}
-          title="Accepted"
-          summary="Sponsor acceptance remains separate from registrar submission."
+          title="Approved"
+          summary="Approval must come from the assigned project owner account after the submission is reviewed."
           entries={[
             {
               label: 'Acceptance',
-              value: stageReached(site.stage, 'accepted') ? 'Accepted' : 'Not accepted in system',
+              value: stageReached(site.stage, 'accepted') ? 'Approved' : 'Not approved in system',
+            },
+            {
+              label: 'Approved on',
+              value: site.acceptance?.acceptedAt ?? 'Not recorded',
+            },
+            {
+              label: 'Decision',
+              value: site.acceptance?.acceptedAt
+                ? site.acceptance.acceptedAsAdmin
+                  ? 'Admin break-glass'
+                  : 'Project owner'
+                : site.acceptance?.rejectedAt
+                  ? 'Rejected'
+                  : 'Pending',
+            },
+            {
+              label: 'Approved by',
+              value: site.acceptance?.acceptedByName ?? 'Not recorded',
             },
           ]}
           evidence={[]}
           emptyEvidence="No in-system acceptance evidence recorded yet."
-        />
+        >
+          {site.stage === 'submitted_for_acceptance' && !site.acceptance?.acceptedAt && isOwnerApprover && (
+            <AcceptanceActionForm
+              siteId={site.id}
+              action="accept"
+              title="Approve baseline"
+              description="Use this only after the project owner has reviewed the baseline and is ready to sign it off."
+              buttonLabel="Approve baseline"
+            />
+          )}
+          {site.stage === 'submitted_for_acceptance' && !site.acceptance?.acceptedAt && !isOwnerApprover && (
+            <p className="body-copy text-[14px]">
+              Waiting for approval from {site.ownerApproverEmail || 'the assigned project owner account'}.
+            </p>
+          )}
+          {site.acceptance?.rejectedAt && (
+            <p className="body-copy text-[14px]">
+              Rejected on {site.acceptance.rejectedAt}: {site.acceptance.rejectionReason || 'No reason recorded'}.
+            </p>
+          )}
+        </LifecycleDetailStep>
 
         <LifecycleDetailStep
           stage="monitoring"
@@ -680,6 +783,36 @@ function isWindowOpenForCheck(window: AdminAuditWindow, today: string): boolean 
     window.status === 'scheduled' &&
     window.dueDate <= today &&
     window.graceUntil >= today
+  )
+}
+
+function AcceptanceActionForm({
+  siteId,
+  action,
+  title,
+  description,
+  buttonLabel,
+}: {
+  siteId: string
+  action: 'submit' | 'accept'
+  title: string
+  description: string
+  buttonLabel: string
+}) {
+  return (
+    <form action={`/sites/${siteId}/acceptance`} method="post" className="grid gap-4">
+      <input type="hidden" name="action" value={action} />
+      <div className="form-section-line">
+        <div>
+          <p className="eyebrow">Next action</p>
+          <h3 className="section-title mt-1">{title}</h3>
+        </div>
+      </div>
+      <p className="body-copy">{description}</p>
+      <button className="command-button justify-self-start" type="submit">
+        {buttonLabel}
+      </button>
+    </form>
   )
 }
 

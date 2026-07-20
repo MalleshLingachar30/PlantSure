@@ -17,6 +17,7 @@ import { getKarnatakaGeographyByKey } from '@/lib/karnataka-geography'
 const registrationSchema = z.object({
   programName: z.string().trim().min(2),
   escalationEmail: z.string().trim().email(),
+  ownerApproverEmail: z.string().trim().email(),
   siteName: z.string().trim().min(2),
   geographyKey: z.string().trim().min(2),
   village: z.string().trim().min(2),
@@ -53,6 +54,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
       organizationId: randomUUID(),
       name: input.programName,
       escalationEmail: input.escalationEmail,
+      ownerApproverEmail: input.ownerApproverEmail,
     })
 
     return createPlantationSite(client, {

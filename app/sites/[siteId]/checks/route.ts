@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireAdminMember } from '@/lib/auth-member'
+import { requirePlantationMember } from '@/lib/auth-member'
 import { recordAuditCheck } from '@/lib/plantation-checks'
 import { withDatabase } from '@/lib/db'
 
@@ -46,7 +46,7 @@ export async function POST(
 
   try {
     await withDatabase(async (client) => {
-      const member = await requireAdminMember(client)
+      const member = await requirePlantationMember(client, ['admin', 'auditor'])
 
       return recordAuditCheck(client, {
         windowId: input.windowId,

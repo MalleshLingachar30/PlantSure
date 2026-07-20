@@ -17,6 +17,7 @@ export type CreateProgramInput = {
   organizationId: string
   name: string
   escalationEmail: string
+  ownerApproverEmail?: string | null
   knowledgePartnerOrgId?: string | null
   implementerOrgId?: string | null
   monitoringYears?: number
@@ -75,6 +76,7 @@ export type CreateSiteResult = {
 export type ConfirmCountsInput = {
   siteId: string
   monitoringStart: string
+  actor?: string
 }
 
 export type ConfirmCountsResult = {
@@ -120,9 +122,29 @@ type ProgramForWindows = {
 type SiteForConfirmation = {
   id: string
   status: string
+  stage: LifecycleStage
   monitoring_start: Date | string | null
   monitoring_end: Date | string | null
   program_id: string
+}
+
+type AcceptanceSnapshotSiteRow = {
+  program_name: string
+  location_id: string
+  name: string
+  district: string
+  taluk: string
+  village: string
+  planting_date: Date | string
+  planted_count: number
+  species_notes: string | null
+  land_ownership: string
+  land_custodian: string | null
+  approval_reference: string | null
+  is_shared_parcel: boolean
+  watch_and_ward: boolean
+  boundary_points: unknown
+  plantation_type: string
 }
 
 type AuditWindowInput = {
@@ -150,6 +172,7 @@ export async function createPlantationProgram(
         insert into plantation_programs (
           organization_id,
           name,
+          owner_approver_email,
           knowledge_partner_org_id,
           implementer_org_id,
           monitoring_years,
@@ -164,13 +187,15 @@ export async function createPlantationProgram(
           $5,
           $6,
           $7,
-          $8
+          $8,
+          $9
         )
         returning id
       `,
       [
         input.organizationId,
         input.name,
+        input.ownerApproverEmail ?? null,
         input.knowledgePartnerOrgId ?? null,
         input.implementerOrgId ?? null,
         input.monitoringYears ?? 5,
@@ -418,6 +443,7 @@ export async function confirmPlantationCounts(
         select
           id,
           status,
+          stage,
           monitoring_start,
           monitoring_end,
           program_id
@@ -446,6 +472,10 @@ export async function confirmPlantationCounts(
         windowsCreated: 0,
         alreadyConfirmed: true,
       }
+    }
+
+    if (site.stage !== 'accepted') {
+      throw new Error('Plantation counts can only be confirmed after acceptance')
     }
 
     const programResult = await tx.query<ProgramForWindows>(
@@ -489,6 +519,14 @@ export async function confirmPlantationCounts(
 
     await insertAuditWindows(tx, windows)
     await insertGeneratedWindowEvents(tx, windows)
+    if (input.actor) {
+      await advanceSiteStage(tx, {
+        siteId: site.id,
+        toStage: 'monitoring',
+        actor: input.actor,
+        notes: `Monitoring opened with ${windows.length} scheduled checks`,
+      })
+    }
 
     return {
       siteId: site.id,
@@ -498,6 +536,115 @@ export async function confirmPlantationCounts(
       windowsCreated: windows.length,
       alreadyConfirmed: false,
     }
+  })
+}
+
+export async function submitSiteForAcceptance(
+  db: TransactionRunner,
+  input: {
+    siteId: string
+    submittedByMemberId: string
+  },
+): Promise<LifecycleStage> {
+  return transaction(db, async (tx) => {
+    await tx.query(
+      `
+        insert into plantation_acceptances (
+          site_id,
+          submitted_by
+        ) values (
+          $1,
+          $2
+        )
+        on conflict (site_id) do nothing
+      `,
+      [input.siteId, input.submittedByMemberId],
+    )
+
+    return advanceSiteStage(tx, {
+      siteId: input.siteId,
+      toStage: 'submitted_for_acceptance',
+      actor: input.submittedByMemberId,
+      notes: 'Baseline submitted for acceptance',
+    })
+  })
+}
+
+export async function acceptSiteAsAdmin(
+  db: TransactionRunner,
+  input: {
+    siteId: string
+    acceptedByMemberId: string
+  },
+): Promise<LifecycleStage> {
+  return transaction(db, async (tx) => {
+    const snapshot = await acceptanceSnapshot(tx, input.siteId)
+    const result = await tx.query<{ id: string }>(
+      `
+        update plantation_acceptances
+        set
+          accepted_by = $2,
+          accepted_as_admin = true,
+          accepted_at = now(),
+          accepted_snapshot = $3::jsonb
+        where site_id = $1
+          and accepted_at is null
+          and rejected_at is null
+        returning id
+      `,
+      [input.siteId, input.acceptedByMemberId, JSON.stringify(snapshot)],
+    )
+
+    if (!result.rows[0]?.id) {
+      throw new Error('Submitted acceptance record not found')
+    }
+
+    return advanceSiteStage(tx, {
+      siteId: input.siteId,
+      toStage: 'accepted',
+      actor: input.acceptedByMemberId,
+      notes: 'Accepted in admin break-glass',
+    })
+  })
+}
+
+export async function acceptSiteAsSponsor(
+  db: TransactionRunner,
+  input: {
+    siteId: string
+    acceptedByMemberId: string
+    acceptedRole?: 'primary' | 'fallback'
+  },
+): Promise<LifecycleStage> {
+  return transaction(db, async (tx) => {
+    const snapshot = await acceptanceSnapshot(tx, input.siteId)
+    const result = await tx.query<{ id: string }>(
+      `
+        update plantation_acceptances
+        set
+          accepted_by = $2,
+          accepted_role = $3,
+          accepted_as_admin = false,
+          accepted_at = now(),
+          accepted_snapshot = $4::jsonb
+        where site_id = $1
+          and accepted_at is null
+          and rejected_at is null
+        returning id
+      `,
+      [input.siteId, input.acceptedByMemberId, input.acceptedRole ?? 'primary', JSON.stringify(snapshot)],
+    )
+
+    if (!result.rows[0]?.id) {
+      throw new Error('Submitted acceptance record not found')
+    }
+
+    return advanceSiteStage(tx, {
+      siteId: input.siteId,
+      toStage: 'accepted',
+      actor: input.acceptedByMemberId,
+      notes: 'Accepted by project owner approver',
+    })
   })
 }
 
@@ -605,6 +752,81 @@ export async function recordStageEvidenceAndAdvance(
       notes: `${urls.length} photo${urls.length === 1 ? '' : 's'} recorded`,
     })
   })
+}
+
+async function acceptanceSnapshot(
+  tx: TransactionClient,
+  siteId: string,
+): Promise<Record<string, unknown>> {
+  const siteResult = await tx.query<AcceptanceSnapshotSiteRow>(
+    `
+      select
+        programs.name as program_name,
+        sites.location_id,
+        sites.name,
+        sites.district,
+        sites.taluk,
+        sites.village,
+        sites.planting_date,
+        sites.planted_count,
+        sites.species_notes,
+        sites.land_ownership::text as land_ownership,
+        sites.land_custodian,
+        sites.approval_reference,
+        sites.is_shared_parcel,
+        sites.watch_and_ward,
+        sites.boundary_points,
+        sites.plantation_type::text as plantation_type
+      from plantation_sites sites
+      join plantation_programs programs on programs.id = sites.program_id
+      where sites.id = $1
+    `,
+    [siteId],
+  )
+  const speciesResult = await tx.query<{
+    species_name: string
+    planted_count: number
+    spacing_notes: string | null
+    placement: string | null
+  }>(
+    `
+      select species_name, planted_count, spacing_notes, placement
+      from plantation_batch_species
+      where site_id = $1
+      order by species_name
+    `,
+    [siteId],
+  )
+  const site = siteResult.rows[0]
+
+  if (!site) {
+    throw new Error('Plantation site not found')
+  }
+
+  return {
+    programName: site.program_name,
+    locationId: site.location_id,
+    siteName: site.name,
+    district: site.district,
+    taluk: site.taluk,
+    village: site.village,
+    plantingDate: dateString(site.planting_date),
+    plantedCount: site.planted_count,
+    speciesNotes: site.species_notes,
+    landOwnership: site.land_ownership,
+    landCustodian: site.land_custodian,
+    approvalReference: site.approval_reference,
+    isSharedParcel: site.is_shared_parcel,
+    watchAndWard: site.watch_and_ward,
+    boundaryPoints: site.boundary_points,
+    plantationType: site.plantation_type,
+    species: speciesResult.rows.map((row) => ({
+      speciesName: row.species_name,
+      plantedCount: row.planted_count,
+      spacingNotes: row.spacing_notes,
+      placement: row.placement,
+    })),
+  }
 }
 
 export function buildAuditWindows(input: {

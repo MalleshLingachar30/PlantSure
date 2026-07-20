@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireAdminMember } from '@/lib/auth-member'
+import { requirePlantationMember } from '@/lib/auth-member'
 import { withDatabase } from '@/lib/db'
 import { confirmPlantationCounts } from '@/lib/plantation-registration'
 
@@ -23,11 +23,12 @@ export async function POST(
 
   try {
     await withDatabase(async (client) => {
-      await requireAdminMember(client)
+      const member = await requirePlantationMember(client, ['admin', 'manager'])
 
       return confirmPlantationCounts(client, {
         siteId,
         monitoringStart: parsed.data.monitoringStart,
+        actor: member.id,
       })
     })
   } catch {

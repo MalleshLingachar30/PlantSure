@@ -4,7 +4,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { InternalShell } from '@/components/internal-shell'
 import { PrintButton } from '@/components/print-button'
-import { requireAdminMember } from '@/lib/auth-member'
+import { requirePlantationMember } from '@/lib/auth-member'
 import { getAdminSiteDetail } from '@/lib/admin-data'
 import { withDatabase } from '@/lib/db'
 import { displayDate, siteUrl } from '@/lib/site-url'
@@ -17,11 +17,21 @@ export default async function BoardPage({
   params: Promise<{ siteId: string }>
 }) {
   const { siteId } = await params
-  const member = await withDatabase(requireAdminMember)
+  const member = await withDatabase((client) => requirePlantationMember(client))
 
   const site = await getAdminSiteDetail(siteId)
 
   if (!site) {
+    notFound()
+  }
+
+  const isOwnerApprover =
+    member.role === 'technician' &&
+    Boolean(member.email) &&
+    Boolean(site.ownerApproverEmail) &&
+    member.email!.trim().toLowerCase() === site.ownerApproverEmail!.trim().toLowerCase()
+
+  if (member.role === 'technician' && !isOwnerApprover) {
     notFound()
   }
 
