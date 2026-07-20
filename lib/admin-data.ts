@@ -40,9 +40,24 @@ export type AdminAuditWindow = {
 }
 
 export type AdminSiteDetail = AdminSiteSummary & {
+  latitude: string
+  longitude: string
+  plantingPhotoUrls: string[]
+  landOwnership: string
+  landCustodian: string | null
+  approvalReference: string | null
+  isSharedParcel: boolean
+  watchAndWard: boolean
+  boundaryPoints: AdminBoundaryPoint[]
+  plantationType: string
   windows: AdminAuditWindow[]
   stageEvidence: AdminStageEvidence[]
   species: AdminBatchSpecies[]
+}
+
+export type AdminBoundaryPoint = {
+  lat: number
+  lng: number
 }
 
 export type AdminStageEvidence = {
@@ -56,6 +71,8 @@ export type AdminStageEvidence = {
 export type AdminBatchSpecies = {
   speciesName: string
   plantedCount: number
+  spacingNotes: string | null
+  placement: string | null
 }
 
 export type PublicSiteDetail = AdminSiteSummary & {
@@ -281,7 +298,41 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     return null
   }
 
-  const { windows, stageEvidence, species } = await withDatabase(async (client) => {
+  const {
+    detail,
+    windows,
+    stageEvidence,
+    species,
+  } = await withDatabase(async (client) => {
+    const detailResult = await client.query<{
+      latitude: string
+      longitude: string
+      planting_photo_urls: string[] | null
+      land_ownership: string
+      land_custodian: string | null
+      approval_reference: string | null
+      is_shared_parcel: boolean
+      watch_and_ward: boolean
+      boundary_points: unknown
+      plantation_type: string
+    }>(
+      `
+        select
+          latitude::text,
+          longitude::text,
+          planting_photo_urls,
+          land_ownership::text,
+          land_custodian,
+          approval_reference,
+          is_shared_parcel,
+          watch_and_ward,
+          boundary_points,
+          plantation_type::text
+        from plantation_sites
+        where id = $1
+      `,
+      [siteId],
+    )
     const windowsResult = await client.query<{
       id: string
       sequence_number: number
@@ -317,9 +368,11 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     const speciesResult = await client.query<{
       species_name: string
       planted_count: number
+      spacing_notes: string | null
+      placement: string | null
     }>(
       `
-        select species_name, planted_count
+        select species_name, planted_count, spacing_notes, placement
         from plantation_batch_species
         where site_id = $1
         order by species_name
@@ -328,6 +381,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     )
 
     return {
+      detail: detailResult.rows[0],
       windows: windowsResult.rows.map((row) => ({
         id: row.id,
         sequenceNumber: row.sequence_number,
@@ -346,11 +400,32 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       species: speciesResult.rows.map((row) => ({
         speciesName: row.species_name,
         plantedCount: row.planted_count,
+        spacingNotes: row.spacing_notes,
+        placement: row.placement,
       })),
     }
   })
 
-  return { ...site, windows, stageEvidence, species }
+  if (!detail) {
+    return null
+  }
+
+  return {
+    ...site,
+    latitude: detail.latitude,
+    longitude: detail.longitude,
+    plantingPhotoUrls: detail.planting_photo_urls ?? [],
+    landOwnership: detail.land_ownership,
+    landCustodian: detail.land_custodian,
+    approvalReference: detail.approval_reference,
+    isSharedParcel: detail.is_shared_parcel,
+    watchAndWard: detail.watch_and_ward,
+    boundaryPoints: normalizeBoundaryPoints(detail.boundary_points),
+    plantationType: detail.plantation_type,
+    windows,
+    stageEvidence,
+    species,
+  }
 }
 
 export async function getPublicSiteByLocationId(
@@ -579,4 +654,27 @@ function timestampDateString(value: Date | string): string {
   }
 
   return value.slice(0, 10)
+}
+
+function normalizeBoundaryPoints(value: unknown): AdminBoundaryPoint[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map((point) => {
+      if (!point || typeof point !== 'object') {
+        return null
+      }
+
+      const lat = Number((point as { lat?: unknown }).lat)
+      const lng = Number((point as { lng?: unknown }).lng)
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null
+      }
+
+      return { lat, lng }
+    })
+    .filter((point): point is AdminBoundaryPoint => point !== null)
 }

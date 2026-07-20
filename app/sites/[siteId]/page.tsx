@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { Camera, ExternalLink, PanelTop } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { requireAdminMember } from '@/lib/auth-member'
@@ -110,6 +111,8 @@ export default async function SitePage({
             <p className="mt-2 font-medium">Check the evidence fields and try again.</p>
           </div>
         )}
+
+        <LifecycleEvidencePanel site={site} />
 
         <div className="mt-7 grid gap-7 lg:grid-cols-[380px_1fr]">
           <section className="admin-panel" aria-labelledby="gate-heading">
@@ -240,9 +243,306 @@ export default async function SitePage({
         )}
 
         <CheckCapturePanel site={site} />
-        <StageCapturePanel site={site} />
       </div>
     </InternalShell>
+  )
+}
+
+type LifecycleEntry = {
+  label: string
+  value: string
+}
+
+type LifecycleEvidenceLink = {
+  id: string
+  label: string
+  detail: string
+  url: string
+  caption?: string | null
+}
+
+function LifecycleEvidencePanel({ site }: { site: AdminSiteDetail }) {
+  const nextStage = nextEvidenceStage(site.stage)
+  const pitsEvidence = site.stageEvidence.filter((evidence) => evidence.stage === 'pits_dug')
+  const plantedEvidence = site.stageEvidence.filter((evidence) => evidence.stage === 'planted')
+  const plantingPhotos = site.plantingPhotoUrls.map((url, index) => ({
+    id: `planting-photo-${index}`,
+    label: 'Registration photo',
+    detail: 'Baseline planting photo',
+    url,
+  }))
+  const openWindow = site.windows.find((window) => window.status === 'scheduled')
+  const completedWindows = site.windows.filter((window) => window.status === 'completed').length
+  const missedWindows = site.windows.filter((window) => window.status === 'missed').length
+
+  return (
+    <section className="admin-panel mt-7" aria-labelledby="lifecycle-evidence-heading">
+      <div className="admin-panel-header">
+        <div>
+          <p className="eyebrow">Lifecycle evidence</p>
+          <h2 id="lifecycle-evidence-heading" className="section-title mt-1">
+            Site record, stage by stage
+          </h2>
+        </div>
+      </div>
+
+      <div className="lifecycle-detail-list">
+        <LifecycleDetailStep
+          stage="land_identified"
+          siteStage={site.stage}
+          title="Land identified"
+          summary="The place is named, coded, and bounded by walked points."
+          entries={[
+            { label: 'Location ID', value: site.locationId },
+            { label: 'Place', value: `${site.village}, ${site.taluk}, ${site.district}` },
+            { label: 'Centre point', value: `${site.latitude}, ${site.longitude}` },
+            {
+              label: 'Boundary points',
+              value:
+                site.boundaryPoints.length > 0
+                  ? `${site.boundaryPoints.length} corners recorded`
+                  : 'No boundary corners recorded',
+            },
+          ]}
+          evidence={[]}
+          emptyEvidence="No land-identification field photo recorded yet."
+        >
+          {site.boundaryPoints.length > 0 && (
+            <div className="lifecycle-boundary-grid">
+              {site.boundaryPoints.map((point, index) => (
+                <div key={`${point.lat}-${point.lng}-${index}`} className="lifecycle-boundary-point">
+                  <span className="eyebrow">Corner {index + 1}</span>
+                  <strong>
+                    {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </LifecycleDetailStep>
+
+        <LifecycleDetailStep
+          stage="land_verified"
+          siteStage={site.stage}
+          title="Land verified"
+          summary="Custody and permission details are captured before planting work proceeds."
+          entries={[
+            { label: 'Ownership', value: displayEnum(site.landOwnership) },
+            { label: 'Custodian', value: site.landCustodian || 'Not recorded' },
+            { label: 'Approval reference', value: site.approvalReference || 'Not recorded' },
+            { label: 'Shared parcel', value: yesNo(site.isSharedParcel) },
+            { label: 'Watch and ward', value: yesNo(site.watchAndWard) },
+          ]}
+          evidence={[]}
+          emptyEvidence="No land-verification field photo recorded yet."
+        />
+
+        <LifecycleDetailStep
+          stage="species_configured"
+          siteStage={site.stage}
+          title="Species entered"
+          summary="The baseline is stored as per-species rows; the total is derived from them."
+          entries={[
+            { label: 'Species rows', value: site.species.length.toString() },
+            { label: 'Derived total', value: site.plantedCount.toLocaleString() },
+            { label: 'Notes', value: site.speciesNotes || 'No notes recorded' },
+          ]}
+          evidence={[]}
+          emptyEvidence="Species rows do not require a field photo."
+        >
+          {site.species.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="data-table lifecycle-species-table">
+                <thead>
+                  <tr>
+                    <th>Species</th>
+                    <th>Plants</th>
+                    <th>Placement</th>
+                    <th>Spacing</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {site.species.map((species) => (
+                    <tr key={species.speciesName}>
+                      <td>{species.speciesName}</td>
+                      <td>{species.plantedCount.toLocaleString()}</td>
+                      <td>{species.placement || 'Not recorded'}</td>
+                      <td>{species.spacingNotes || 'Not recorded'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </LifecycleDetailStep>
+
+        <LifecycleDetailStep
+          stage="material_arranged"
+          siteStage={site.stage}
+          title="Materials ready"
+          summary="Intake facts needed before field execution are on the record."
+          entries={[
+            { label: 'Plantation type', value: displayEnum(site.plantationType) },
+            { label: 'Planting date', value: site.plantingDate },
+            { label: 'Plants planned', value: site.plantedCount.toLocaleString() },
+          ]}
+          evidence={plantingPhotos}
+          emptyEvidence="No registration photo URLs recorded."
+        />
+
+        <LifecycleDetailStep
+          stage="pits_dug"
+          siteStage={site.stage}
+          title="Pits dug"
+          summary="Field photo evidence is required before the planting stage can be recorded."
+          entries={[
+            { label: 'Photos', value: pitsEvidence.length.toString() },
+            {
+              label: 'Status',
+              value: stageReached(site.stage, 'pits_dug') ? 'Recorded' : 'Waiting for evidence',
+            },
+          ]}
+          evidence={evidenceLinks(pitsEvidence)}
+          emptyEvidence="No pits-dug photos recorded yet."
+        >
+          {nextStage === 'pits_dug' && <StageEvidenceForm siteId={site.id} stage="pits_dug" />}
+        </LifecycleDetailStep>
+
+        <LifecycleDetailStep
+          stage="planted"
+          siteStage={site.stage}
+          title="Planted"
+          summary="Planting photo evidence completes the field registration flow."
+          entries={[
+            { label: 'Photos', value: plantedEvidence.length.toString() },
+            {
+              label: 'Status',
+              value: stageReached(site.stage, 'planted') ? 'Recorded' : 'Waiting for evidence',
+            },
+          ]}
+          evidence={evidenceLinks(plantedEvidence)}
+          emptyEvidence="No planted photos recorded yet."
+        >
+          {nextStage === 'planted' && <StageEvidenceForm siteId={site.id} stage="planted" />}
+        </LifecycleDetailStep>
+
+        <LifecycleDetailStep
+          stage="submitted_for_acceptance"
+          siteStage={site.stage}
+          title="Submitted"
+          summary="Pilot acceptance is still handled on paper; the system stage is visible here."
+          entries={[
+            {
+              label: 'Submission',
+              value: stageReached(site.stage, 'submitted_for_acceptance')
+                ? 'Submitted for acceptance'
+                : 'Not submitted',
+            },
+          ]}
+          evidence={[]}
+          emptyEvidence="No in-system acceptance packet recorded yet."
+        />
+
+        <LifecycleDetailStep
+          stage="accepted"
+          siteStage={site.stage}
+          title="Accepted"
+          summary="Sponsor acceptance remains separate from registrar submission."
+          entries={[
+            {
+              label: 'Acceptance',
+              value: stageReached(site.stage, 'accepted') ? 'Accepted' : 'Not accepted in system',
+            },
+          ]}
+          evidence={[]}
+          emptyEvidence="No in-system acceptance evidence recorded yet."
+        />
+
+        <LifecycleDetailStep
+          stage="monitoring"
+          siteStage={site.stage}
+          title="Monitoring"
+          summary="Confirmed sites get twenty windows; missed checks are recorded by the scheduler."
+          entries={[
+            { label: 'Gate', value: site.status === 'counts_confirmed' ? 'Counts confirmed' : 'Counts open' },
+            { label: 'Windows', value: site.windowsCount.toString() },
+            { label: 'Checked', value: completedWindows.toString() },
+            { label: 'Missed', value: missedWindows.toString() },
+            { label: 'Next scheduled', value: openWindow ? `${openWindow.cycleLabel}, due ${openWindow.dueDate}` : 'None' },
+          ]}
+          evidence={[]}
+          emptyEvidence="Audit visit photos appear after a check is recorded."
+        />
+      </div>
+    </section>
+  )
+}
+
+function LifecycleDetailStep({
+  stage,
+  siteStage,
+  title,
+  summary,
+  entries,
+  evidence,
+  emptyEvidence,
+  children,
+}: {
+  stage: string
+  siteStage: string
+  title: string
+  summary: string
+  entries: LifecycleEntry[]
+  evidence: LifecycleEvidenceLink[]
+  emptyEvidence: string
+  children?: ReactNode
+}) {
+  const complete = stageReached(siteStage, stage)
+  const active = siteStage === stage
+
+  return (
+    <article className={`lifecycle-detail-step${active ? ' is-active' : ''}`}>
+      <div className="lifecycle-detail-marker" aria-hidden="true">
+        {complete ? '✓' : active ? '•' : ''}
+      </div>
+      <div className="lifecycle-detail-body">
+        <div className="lifecycle-detail-heading">
+          <div>
+            <p className="eyebrow">{complete ? 'Recorded' : active ? 'Current' : 'Waiting'}</p>
+            <h3>{title}</h3>
+          </div>
+          <span>{summary}</span>
+        </div>
+
+        <dl className="lifecycle-entry-grid">
+          {entries.map((entry) => (
+            <div key={entry.label}>
+              <dt>{entry.label}</dt>
+              <dd>{entry.value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {children}
+
+        <div className="lifecycle-evidence-links">
+          {evidence.length > 0 ? (
+            evidence.map((item) => (
+              <a key={item.id} href={item.url} target="_blank" rel="noreferrer">
+                <span>
+                  <span className="eyebrow">{item.label}</span>
+                  <strong>{item.detail}</strong>
+                  {item.caption && <span>{item.caption}</span>}
+                </span>
+                <ExternalLink size={15} aria-hidden="true" />
+              </a>
+            ))
+          ) : (
+            <p>{emptyEvidence}</p>
+          )}
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -383,71 +683,6 @@ function isWindowOpenForCheck(window: AdminAuditWindow, today: string): boolean 
   )
 }
 
-function StageCapturePanel({ site }: { site: AdminSiteDetail }) {
-  const nextStage = nextEvidenceStage(site.stage)
-  const pitsPhotos = site.stageEvidence.filter((evidence) => evidence.stage === 'pits_dug')
-  const plantedPhotos = site.stageEvidence.filter((evidence) => evidence.stage === 'planted')
-
-  return (
-    <section className="admin-panel mt-7" aria-labelledby="stage-evidence-heading">
-      <div className="admin-panel-header">
-        <div>
-          <p className="eyebrow">Field evidence</p>
-          <h2 id="stage-evidence-heading" className="section-title mt-1">
-            Planting stages
-          </h2>
-        </div>
-      </div>
-
-      <div className="grid gap-6 p-5 sm:p-6">
-        <dl className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <dt className="eyebrow">Current stage</dt>
-            <dd className="mt-1 font-medium">{stageLabel(site.stage)}</dd>
-          </div>
-          <div>
-            <dt className="eyebrow">Pits photos</dt>
-            <dd className="mt-1 font-medium">{pitsPhotos.length}</dd>
-          </div>
-          <div>
-            <dt className="eyebrow">Planting photos</dt>
-            <dd className="mt-1 font-medium">{plantedPhotos.length}</dd>
-          </div>
-        </dl>
-
-        {nextStage ? (
-          <StageEvidenceForm siteId={site.id} stage={nextStage} />
-        ) : (
-          <p className="body-copy">
-            Stage evidence is complete for the current registration flow.
-          </p>
-        )}
-
-        {site.stageEvidence.length > 0 && (
-          <div className="stage-evidence-list">
-            {site.stageEvidence.map((evidence) => (
-              <a
-                key={evidence.id}
-                className="stage-evidence-item"
-                href={evidence.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span>
-                  <span className="eyebrow">{stageLabel(evidence.stage)}</span>
-                  <strong>{evidence.capturedAt}</strong>
-                  {evidence.caption && <span>{evidence.caption}</span>}
-                </span>
-                <ExternalLink size={15} aria-hidden="true" />
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
 function StageEvidenceForm({
   siteId,
   stage,
@@ -527,6 +762,51 @@ function nextEvidenceStage(stage: string): 'pits_dug' | 'planted' | null {
   }
 
   return null
+}
+
+const lifecycleStageOrder = [
+  'land_identified',
+  'land_verified',
+  'species_configured',
+  'material_arranged',
+  'pits_dug',
+  'planted',
+  'submitted_for_acceptance',
+  'accepted',
+  'monitoring',
+  'archived',
+]
+
+function stageReached(currentStage: string, targetStage: string): boolean {
+  const currentIndex = lifecycleStageOrder.indexOf(currentStage)
+  const targetIndex = lifecycleStageOrder.indexOf(targetStage)
+
+  if (currentIndex === -1 || targetIndex === -1) {
+    return currentStage === targetStage
+  }
+
+  return currentIndex >= targetIndex
+}
+
+function evidenceLinks(evidence: AdminSiteDetail['stageEvidence']): LifecycleEvidenceLink[] {
+  return evidence.map((item) => ({
+    id: item.id,
+    label: stageLabel(item.stage),
+    detail: item.capturedAt,
+    url: item.url,
+    caption: item.caption,
+  }))
+}
+
+function yesNo(value: boolean): string {
+  return value ? 'Yes' : 'No'
+}
+
+function displayEnum(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function stageLabel(stage: string): string {
