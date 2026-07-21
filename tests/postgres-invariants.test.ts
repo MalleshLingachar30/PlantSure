@@ -59,11 +59,13 @@ async function insertProgram(client: Client, id: string): Promise<void> {
         id,
         organization_id,
         name,
+        owner_approver_email,
         escalation_email
       ) values (
         $1,
         '00000000-0000-4000-8000-000000000010',
         'Green Karnataka 2026',
+        'technician-0277@example.com',
         'iaft@example.com'
       )
     `,
@@ -503,6 +505,7 @@ test('Postgres locks accepted acceptance records', async () => {
     const secondSiteId = '00000000-0000-4000-8000-000000000275'
     const registrarId = '00000000-0000-4000-8000-000000000276'
     const sponsorId = '00000000-0000-4000-8000-000000000277'
+    const wrongSponsorId = '00000000-0000-4000-8000-000000000281'
     const inspectorId = '00000000-0000-4000-8000-000000000278'
     const adminBreakGlassSiteId = '00000000-0000-4000-8000-000000000279'
     const adminAcceptanceId = '00000000-0000-4000-8000-000000000280'
@@ -511,6 +514,7 @@ test('Postgres locks accepted acceptance records', async () => {
     await insertProgram(client, programId)
     await insertMember(client, registrarId, 'manager')
     await insertMember(client, sponsorId, 'technician')
+    await insertMember(client, wrongSponsorId, 'technician')
     await insertMember(client, inspectorId, 'auditor')
     await insertSite(client, siteId, programId, 'KA-TMK-GUB-000128')
     await insertSite(client, secondSiteId, programId, 'KA-TMK-GUB-000129')
@@ -604,6 +608,31 @@ test('Postgres locks accepted acceptance records', async () => {
         )
       `,
       [adminAcceptanceId, adminBreakGlassSiteId, adminMemberId],
+    )
+
+    await assert.rejects(
+      () =>
+        client.query(
+          `
+            insert into plantation_acceptances (
+              site_id,
+              submitted_by,
+              accepted_by,
+              accepted_role,
+              accepted_at,
+              accepted_snapshot
+            ) values (
+              $1,
+              $2,
+              $3,
+              'primary',
+              now(),
+              '{"species":[{"speciesName":"Mixed","plantedCount":600}]}'::jsonb
+            )
+          `,
+          [siteId, registrarId, wrongSponsorId],
+        ),
+      /accepted baseline must be approved by the assigned project owner account/,
     )
 
     await client.query(

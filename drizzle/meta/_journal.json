@@ -64,6 +64,13 @@
       "when": 1784636727057,
       "tag": "0008_owner_approver_email",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784637600000,
+      "tag": "0009_acceptance_owner_guard",
+      "breakpoints": true
     }
   ]
 }

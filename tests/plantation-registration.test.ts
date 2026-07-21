@@ -453,6 +453,46 @@ test('acceptance submission and owner approval advance the site into accepted st
   })
 })
 
+test('owner approval rejects a technician who is not the configured programme approver', async () => {
+  await withMigratedDatabase(async ({ client }) => {
+    const wrongSponsorId = '00000000-0000-4000-8000-000000000022'
+    const programId = await createProgram(client)
+    const siteId = await createSite(client, programId)
+
+    await insertMember(client, wrongSponsorId, 'technician', 'someone-else@example.com')
+
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'pits_dug',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-1.jpg'],
+      capturedAt: '2026-07-10T09:30:00',
+      uploadedByMemberId: memberId,
+    })
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'planted',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+      capturedAt: '2026-07-15T11:00:00',
+      uploadedByMemberId: memberId,
+    })
+
+    await submitSiteForAcceptance(client, {
+      siteId,
+      submittedByMemberId: memberId,
+    })
+
+    await assert.rejects(
+      () =>
+        acceptSiteAsSponsor(client, {
+          siteId,
+          acceptedByMemberId: wrongSponsorId,
+          acceptedRole: 'primary',
+        }),
+      /assigned project owner account/,
+    )
+  })
+})
+
 test('concurrent site registrations allocate unique Location IDs', async () => {
   await withMigratedDatabase(async ({ client, schemaName }) => {
     const programIds: string[] = []
