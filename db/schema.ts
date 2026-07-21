@@ -126,6 +126,7 @@ export const plantationPrograms = pgTable('plantation_programs', {
   auditFrequency: auditFrequencyEnum('audit_frequency').default('quarterly').notNull(),
   survivalThreshold: numeric('survival_threshold', { precision: 5, scale: 2 }).default('85').notNull(),
   escalationEmail: text('escalation_email').notNull(),
+  ownerApproverEmail: text('owner_approver_email'),
   isDemo: boolean('is_demo').default(false).notNull(),
   status: programStatusEnum('status').default('active').notNull(),
   ...timestamps,
