@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { registerPilotSite } from './actions'
 import { GeographySelects } from '@/components/geography-selects'
 import { InternalShell } from '@/components/internal-shell'
@@ -7,6 +8,7 @@ import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
 import { hasDatabaseUrl, withDatabase } from '@/lib/db'
 import { KARNATAKA_GEOGRAPHIES } from '@/lib/karnataka-geography'
+import { listPlantationDirectory } from '@/lib/plantation-directory'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +25,13 @@ export default async function AdminPage({
     await requireSignedIn()
   }
 
-  const [{ error }, overview] = await Promise.all([searchParams, getAdminOverview()])
+  const [{ error }, overview, directory] = await Promise.all([
+    searchParams,
+    getAdminOverview(),
+    hasDatabaseUrl()
+      ? withDatabase((client) => listPlantationDirectory(client))
+      : Promise.resolve({ scientificAdvisors: [], organizations: [] }),
+  ])
   const formDisabled = !overview.configured
 
   return (
@@ -90,12 +98,116 @@ export default async function AdminPage({
                   disabled={formDisabled}
                   required
                 />
+              </fieldset>
+
+              <fieldset className="form-grid" disabled={formDisabled}>
+                <legend className="form-legend">Scientific advisory</legend>
+                <SelectField label="Use existing advisor" name="scientificAdvisorId" disabled={formDisabled}>
+                  <option value="">Create new scientific advisor</option>
+                  {directory.scientificAdvisors.map((advisor) => (
+                    <option key={advisor.id} value={advisor.id}>
+                      {advisor.name}
+                      {advisor.contactEmail ? ` · ${advisor.contactEmail}` : ''}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  label="Advisor type"
+                  name="scientificAdvisorType"
+                  defaultValue="scientific_institute"
+                  disabled={formDisabled}
+                >
+                  <option value="scientific_institute">Scientific institute</option>
+                  <option value="forest_department">Forest department</option>
+                  <option value="university">University</option>
+                  <option value="independent">Independent expert</option>
+                  <option value="other">Other</option>
+                </SelectField>
                 <TextField
-                  label="Owner approval email"
+                  label="Advisor name"
+                  name="scientificAdvisorName"
+                  defaultValue="Institute of Agroforestry and Forest Technology"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Advisor contact"
+                  name="scientificAdvisorContactName"
+                  defaultValue="IAFT coordination desk"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Advisor email"
+                  name="scientificAdvisorContactEmail"
+                  type="email"
+                  defaultValue="ml@feedbacknfc.com"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Advisor phone"
+                  name="scientificAdvisorContactPhone"
+                  defaultValue="047257"
+                  disabled={formDisabled}
+                />
+              </fieldset>
+
+              <fieldset className="form-grid" disabled={formDisabled}>
+                <legend className="form-legend">Planting organization</legend>
+                <SelectField label="Use existing organization" name="organizationId" disabled={formDisabled}>
+                  <option value="">Create new planting organization</option>
+                  {directory.organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                      {organization.ownerApproverEmail ? ` · ${organization.ownerApproverEmail}` : ''}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  label="Organization type"
+                  name="organizationType"
+                  defaultValue="institution"
+                  disabled={formDisabled}
+                >
+                  <option value="institution">Institution</option>
+                  <option value="corporate">Corporate</option>
+                  <option value="foundation">Foundation</option>
+                  <option value="government">Government</option>
+                  <option value="community">Community group</option>
+                  <option value="other">Other</option>
+                </SelectField>
+                <TextField
+                  label="Organization name"
+                  name="organizationName"
+                  defaultValue="Sindhi Seva Samaj"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Owner approver name"
+                  name="ownerApproverName"
+                  defaultValue="Project owner approver"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Owner approver email"
                   name="ownerApproverEmail"
                   type="email"
                   disabled={formDisabled}
-                  required
+                />
+                <TextField
+                  label="Organization contact"
+                  name="organizationContactName"
+                  defaultValue="Field coordinator"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Organization email"
+                  name="organizationContactEmail"
+                  type="email"
+                  disabled={formDisabled}
+                />
+                <TextField
+                  label="Organization phone"
+                  name="organizationContactPhone"
+                  disabled={formDisabled}
                 />
               </fieldset>
 
@@ -234,6 +346,29 @@ function TextField({
         min={min}
         disabled={disabled}
       />
+    </label>
+  )
+}
+
+function SelectField({
+  label,
+  name,
+  defaultValue,
+  disabled,
+  children,
+}: {
+  label: string
+  name: string
+  defaultValue?: string
+  disabled?: boolean
+  children: ReactNode
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select className="input" name={name} defaultValue={defaultValue} disabled={disabled}>
+        {children}
+      </select>
     </label>
   )
 }

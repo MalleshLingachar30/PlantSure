@@ -78,6 +78,13 @@
       "when": 1784801400000,
       "tag": "0010_acceptance_request_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784805600000,
+      "tag": "0011_scientific_advisory_master",
+      "breakpoints": true
     }
   ]
 }

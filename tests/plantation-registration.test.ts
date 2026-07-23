@@ -4,6 +4,10 @@ import { readdir, readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import { Client } from 'pg'
 import {
+  findOrCreatePlantingOrganization,
+  findOrCreateScientificAdvisor,
+} from '../lib/plantation-directory'
+import {
   acceptSiteAsSponsor,
   buildAuditWindows,
   confirmPlantationCounts,
@@ -83,11 +87,22 @@ function dateValue(value: Date | string | undefined): string | undefined {
 }
 
 async function createProgram(client: Client): Promise<string> {
+  const advisor = await findOrCreateScientificAdvisor(client, {
+    name: 'Institute of Agroforestry and Forest Technology',
+    advisorType: 'scientific_institute',
+    contactEmail: 'iaft@example.com',
+  })
+  const organization = await findOrCreatePlantingOrganization(client, {
+    name: 'Green Karnataka Owner',
+    organizationType: 'institution',
+    scientificAdvisorId: advisor.id,
+    primaryContactEmail: 'iaft@example.com',
+    ownerApproverEmail: 'owner@example.com',
+  })
   const program = await createPlantationProgram(client, {
-    organizationId: randomUUID(),
+    organizationId: organization.id,
     name: 'Green Karnataka 2026',
     escalationEmail: 'iaft@example.com',
-    ownerApproverEmail: 'owner@example.com',
   })
 
   return program.id

@@ -42,7 +42,16 @@ export type AdminAuditWindow = {
 export type AdminSiteDetail = AdminSiteSummary & {
   latitude: string
   longitude: string
+  organizationName: string
+  organizationType: string
+  organizationContactName: string | null
+  organizationContactEmail: string | null
+  organizationContactPhone: string | null
+  ownerApproverName: string | null
   ownerApproverEmail: string | null
+  scientificAdvisorName: string
+  scientificAdvisorContactName: string | null
+  scientificAdvisorContactEmail: string | null
   plantingPhotoUrls: string[]
   landOwnership: string
   landCustodian: string | null
@@ -90,6 +99,15 @@ export type AdminBatchSpecies = {
 export type PublicSiteDetail = AdminSiteSummary & {
   latitude: string
   longitude: string
+  organizationName: string
+  organizationType: string
+  organizationContactName: string | null
+  organizationContactEmail: string | null
+  ownerApproverName: string | null
+  ownerApproverEmail: string | null
+  scientificAdvisorName: string
+  scientificAdvisorContactName: string | null
+  scientificAdvisorContactEmail: string | null
   plantingPhotoUrls: string[]
   stageEvidence: PublicPlantingEvidence[]
   latestAudit: {
@@ -320,7 +338,16 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     const detailResult = await client.query<{
       latitude: string
       longitude: string
+      organization_name: string
+      organization_type: string
+      organization_contact_name: string | null
+      organization_contact_email: string | null
+      organization_contact_phone: string | null
+      owner_approver_name: string | null
       owner_approver_email: string | null
+      scientific_advisor_name: string
+      scientific_advisor_contact_name: string | null
+      scientific_advisor_contact_email: string | null
       planting_photo_urls: string[] | null
       land_ownership: string
       land_custodian: string | null
@@ -332,23 +359,32 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     }>(
       `
         select
-          latitude::text,
-          longitude::text,
-          (
-            select programs.owner_approver_email
-            from plantation_programs programs
-            where programs.id = plantation_sites.program_id
-          ) as owner_approver_email,
-          planting_photo_urls,
-          land_ownership::text,
-          land_custodian,
-          approval_reference,
-          is_shared_parcel,
-          watch_and_ward,
-          boundary_points,
-          plantation_type::text
-        from plantation_sites
-        where id = $1
+          sites.latitude::text,
+          sites.longitude::text,
+          organizations.name as organization_name,
+          organizations.organization_type::text as organization_type,
+          organizations.primary_contact_name as organization_contact_name,
+          organizations.primary_contact_email as organization_contact_email,
+          organizations.primary_contact_phone as organization_contact_phone,
+          organizations.owner_approver_name,
+          organizations.owner_approver_email,
+          advisors.name as scientific_advisor_name,
+          advisors.contact_name as scientific_advisor_contact_name,
+          advisors.contact_email as scientific_advisor_contact_email,
+          sites.planting_photo_urls,
+          sites.land_ownership::text,
+          sites.land_custodian,
+          sites.approval_reference,
+          sites.is_shared_parcel,
+          sites.watch_and_ward,
+          sites.boundary_points,
+          sites.plantation_type::text
+        from plantation_sites sites
+        join plantation_programs programs on programs.id = sites.program_id
+        join plantation_organizations organizations on organizations.id = programs.organization_id
+        join plantation_scientific_advisors advisors
+          on advisors.id = organizations.scientific_advisor_id
+        where sites.id = $1
       `,
       [siteId],
     )
@@ -473,7 +509,16 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     ...site,
     latitude: detail.latitude,
     longitude: detail.longitude,
+    organizationName: detail.organization_name,
+    organizationType: detail.organization_type,
+    organizationContactName: detail.organization_contact_name,
+    organizationContactEmail: detail.organization_contact_email,
+    organizationContactPhone: detail.organization_contact_phone,
+    ownerApproverName: detail.owner_approver_name,
     ownerApproverEmail: detail.owner_approver_email,
+    scientificAdvisorName: detail.scientific_advisor_name,
+    scientificAdvisorContactName: detail.scientific_advisor_contact_name,
+    scientificAdvisorContactEmail: detail.scientific_advisor_contact_email,
     plantingPhotoUrls: detail.planting_photo_urls ?? [],
     landOwnership: detail.land_ownership,
     landCustodian: detail.land_custodian,
@@ -508,6 +553,15 @@ export async function getPublicSiteByLocationId(
       village: string
       latitude: string
       longitude: string
+      organization_name: string
+      organization_type: string
+      organization_contact_name: string | null
+      organization_contact_email: string | null
+      owner_approver_name: string | null
+      owner_approver_email: string | null
+      scientific_advisor_name: string
+      scientific_advisor_contact_name: string | null
+      scientific_advisor_contact_email: string | null
       planting_photo_urls: string[] | null
       planted_count: number
       planting_date: Date | string
@@ -531,6 +585,15 @@ export async function getPublicSiteByLocationId(
           sites.village,
           sites.latitude::text,
           sites.longitude::text,
+          organizations.name as organization_name,
+          organizations.organization_type::text as organization_type,
+          organizations.primary_contact_name as organization_contact_name,
+          organizations.primary_contact_email as organization_contact_email,
+          organizations.owner_approver_name,
+          organizations.owner_approver_email,
+          advisors.name as scientific_advisor_name,
+          advisors.contact_name as scientific_advisor_contact_name,
+          advisors.contact_email as scientific_advisor_contact_email,
           sites.planting_photo_urls,
           sites.planted_count,
           sites.planting_date,
@@ -543,12 +606,15 @@ export async function getPublicSiteByLocationId(
           count(distinct events.id)::text as generated_events_count
         from plantation_sites sites
         join plantation_programs programs on programs.id = sites.program_id
+        join plantation_organizations organizations on organizations.id = programs.organization_id
+        join plantation_scientific_advisors advisors
+          on advisors.id = organizations.scientific_advisor_id
         left join plantation_audit_windows windows on windows.site_id = sites.id
         left join plantation_window_events events
           on events.window_id = windows.id
           and events.event_type = 'generated'
         where sites.location_id = upper($1)
-        group by sites.id, programs.name
+        group by sites.id, programs.name, organizations.name, organizations.organization_type, organizations.primary_contact_name, organizations.primary_contact_email, organizations.owner_approver_name, organizations.owner_approver_email, advisors.name, advisors.contact_name, advisors.contact_email
       `,
       [locationId.trim()],
     )
@@ -652,6 +718,15 @@ export async function getPublicSiteByLocationId(
       village: row.village,
       latitude: row.latitude,
       longitude: row.longitude,
+      organizationName: row.organization_name,
+      organizationType: row.organization_type,
+      organizationContactName: row.organization_contact_name,
+      organizationContactEmail: row.organization_contact_email,
+      ownerApproverName: row.owner_approver_name,
+      ownerApproverEmail: row.owner_approver_email,
+      scientificAdvisorName: row.scientific_advisor_name,
+      scientificAdvisorContactName: row.scientific_advisor_contact_name,
+      scientificAdvisorContactEmail: row.scientific_advisor_contact_email,
       plantingPhotoUrls: row.planting_photo_urls ?? [],
       stageEvidence: stageEvidence.rows.map((evidence) => ({
         id: evidence.id,

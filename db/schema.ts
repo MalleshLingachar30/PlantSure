@@ -111,6 +111,23 @@ export const acceptanceRoleEnum = pgEnum('plantation_acceptance_role', [
   'fallback',
 ])
 
+export const scientificAdvisorTypeEnum = pgEnum('plantation_scientific_advisor_type', [
+  'scientific_institute',
+  'forest_department',
+  'university',
+  'independent',
+  'other',
+])
+
+export const organizationTypeEnum = pgEnum('plantation_organization_type', [
+  'institution',
+  'corporate',
+  'foundation',
+  'government',
+  'community',
+  'other',
+])
+
 export const notificationTypeEnum = pgEnum('plantation_notification_type', [
   'acceptance_request',
 ])
@@ -130,9 +147,55 @@ const timestamps = {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }
 
+export const plantationScientificAdvisors = pgTable(
+  'plantation_scientific_advisors',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    advisorType: scientificAdvisorTypeEnum('advisor_type').default('scientific_institute').notNull(),
+    contactName: text('contact_name'),
+    contactEmail: text('contact_email'),
+    contactPhone: text('contact_phone'),
+    notes: text('notes'),
+    isActive: boolean('is_active').default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: index('plantation_scientific_advisors_name_idx').on(table.name),
+    activeIdx: index('plantation_scientific_advisors_active_idx').on(table.isActive),
+  }),
+)
+
+export const plantationOrganizations = pgTable(
+  'plantation_organizations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    organizationType: organizationTypeEnum('organization_type').default('other').notNull(),
+    scientificAdvisorId: uuid('scientific_advisor_id')
+      .notNull()
+      .references(() => plantationScientificAdvisors.id, { onDelete: 'restrict' }),
+    primaryContactName: text('primary_contact_name'),
+    primaryContactEmail: text('primary_contact_email'),
+    primaryContactPhone: text('primary_contact_phone'),
+    ownerApproverName: text('owner_approver_name'),
+    ownerApproverEmail: text('owner_approver_email').notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: index('plantation_organizations_name_idx').on(table.name),
+    advisorIdx: index('plantation_organizations_scientific_advisor_id_idx').on(table.scientificAdvisorId),
+    approverEmailIdx: index('plantation_organizations_owner_approver_email_idx').on(table.ownerApproverEmail),
+    activeIdx: index('plantation_organizations_active_idx').on(table.isActive),
+  }),
+)
+
 export const plantationPrograms = pgTable('plantation_programs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  organizationId: uuid('organization_id').notNull(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => plantationOrganizations.id, { onDelete: 'restrict' }),
   name: text('name').notNull(),
   knowledgePartnerOrgId: uuid('knowledge_partner_org_id'),
   implementerOrgId: uuid('implementer_org_id'),
@@ -140,7 +203,6 @@ export const plantationPrograms = pgTable('plantation_programs', {
   auditFrequency: auditFrequencyEnum('audit_frequency').default('quarterly').notNull(),
   survivalThreshold: numeric('survival_threshold', { precision: 5, scale: 2 }).default('85').notNull(),
   escalationEmail: text('escalation_email').notNull(),
-  ownerApproverEmail: text('owner_approver_email'),
   isDemo: boolean('is_demo').default(false).notNull(),
   status: programStatusEnum('status').default('active').notNull(),
   ...timestamps,

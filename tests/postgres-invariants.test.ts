@@ -55,17 +55,51 @@ function quoteIdentifier(value: string): string {
 async function insertProgram(client: Client, id: string): Promise<void> {
   await client.query(
     `
+      insert into plantation_scientific_advisors (
+        id,
+        name,
+        advisor_type,
+        contact_email
+      ) values (
+        '00000000-0000-4000-8000-000000000011',
+        'Institute of Agroforestry and Forest Technology',
+        'scientific_institute',
+        'iaft@example.com'
+      )
+      on conflict (id) do nothing
+    `,
+  )
+  await client.query(
+    `
+      insert into plantation_organizations (
+        id,
+        name,
+        organization_type,
+        scientific_advisor_id,
+        primary_contact_email,
+        owner_approver_email
+      ) values (
+        '00000000-0000-4000-8000-000000000010',
+        'Green Karnataka Owner',
+        'institution',
+        '00000000-0000-4000-8000-000000000011',
+        'iaft@example.com',
+        'technician-0277@example.com'
+      )
+      on conflict (id) do nothing
+    `,
+  )
+  await client.query(
+    `
       insert into plantation_programs (
         id,
         organization_id,
         name,
-        owner_approver_email,
         escalation_email
       ) values (
         $1,
         '00000000-0000-4000-8000-000000000010',
         'Green Karnataka 2026',
-        'technician-0277@example.com',
         'iaft@example.com'
       )
     `,

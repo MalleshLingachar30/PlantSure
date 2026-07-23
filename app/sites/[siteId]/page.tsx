@@ -85,6 +85,9 @@ export default async function SitePage({
               <p className="body-copy mt-2">
                 {site.village}, {site.taluk}, {site.district}
               </p>
+              <p className="body-copy mt-2">
+                {site.programName} · {site.organizationName} · {site.scientificAdvisorName}
+              </p>
             </div>
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
               <Metric label="Planted" value={site.plantedCount.toLocaleString()} />
@@ -124,7 +127,7 @@ export default async function SitePage({
             </p>
             {notified === 'sent' && (
               <p className="mt-2 text-[14px]">
-                The owner approval email was sent to {site.ownerApproverEmail || 'the assigned approver account'}.
+                The owner approval email was sent to {site.ownerApproverEmail || 'the assigned approver account'} for {site.organizationName}.
               </p>
             )}
             {notified === 'failed' && (
@@ -390,6 +393,14 @@ function LifecycleEvidencePanel({
           summary="Custody and permission details are captured before planting work proceeds."
           entries={[
             { label: 'Ownership', value: displayEnum(site.landOwnership) },
+            {
+              label: 'Owner organization',
+              value: `${site.organizationName} (${displayEnum(site.organizationType)})`,
+            },
+            {
+              label: 'Scientific advisor',
+              value: site.scientificAdvisorName,
+            },
             { label: 'Custodian', value: site.landCustodian || 'Not recorded' },
             { label: 'Approval reference', value: site.approvalReference || 'Not recorded' },
             { label: 'Shared parcel', value: yesNo(site.isSharedParcel) },
@@ -506,7 +517,10 @@ function LifecycleEvidencePanel({
             },
             {
               label: 'Owner approver',
-              value: site.ownerApproverEmail ?? 'Not configured',
+              value:
+                site.ownerApproverName && site.ownerApproverEmail
+                  ? `${site.ownerApproverName} · ${site.ownerApproverEmail}`
+                  : site.ownerApproverEmail ?? 'Not configured',
             },
           ]}
           evidence={[]}
@@ -551,6 +565,10 @@ function LifecycleEvidencePanel({
               label: 'Approved by',
               value: site.acceptance?.acceptedByName ?? 'Not recorded',
             },
+            {
+              label: 'Owner organization',
+              value: site.organizationName,
+            },
           ]}
           evidence={[]}
           emptyEvidence="No in-system acceptance evidence recorded yet."
@@ -566,7 +584,7 @@ function LifecycleEvidencePanel({
           )}
           {site.stage === 'submitted_for_acceptance' && !site.acceptance?.acceptedAt && !isOwnerApprover && (
             <p className="body-copy text-[14px]">
-              Waiting for approval from {site.ownerApproverEmail || 'the assigned project owner account'}.
+              Waiting for approval from {site.ownerApproverEmail || 'the assigned project owner account'} at {site.organizationName}.
             </p>
           )}
           {site.acceptance?.rejectedAt && (

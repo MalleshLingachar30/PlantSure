@@ -104,9 +104,10 @@ export async function requireProgramOwnerApproverForSite(
   const member = await requirePlantationMember(db, ['technician'])
   const result = await db.query<{ owner_approver_email: string | null }>(
     `
-      select programs.owner_approver_email
+      select organizations.owner_approver_email
       from plantation_sites sites
       join plantation_programs programs on programs.id = sites.program_id
+      join plantation_organizations organizations on organizations.id = programs.organization_id
       where sites.id = $1
     `,
     [siteId],
@@ -132,7 +133,7 @@ async function inferredRole(db: Queryable, email: string | null): Promise<Planta
       `
         select exists(
           select 1
-          from plantation_programs
+          from plantation_organizations
           where lower(coalesce(owner_approver_email, '')) = $1
         ) as matched
       `,

@@ -58,6 +58,18 @@ export default async function PublicSitePage({
               <dd>{site.programName}</dd>
             </div>
             <div>
+              <dt>Owner</dt>
+              <dd>{site.organizationName}</dd>
+            </div>
+            <div>
+              <dt>Type</dt>
+              <dd>{displayType(site.organizationType)}</dd>
+            </div>
+            <div>
+              <dt>Scientific advisor</dt>
+              <dd>{site.scientificAdvisorName}</dd>
+            </div>
+            <div>
               <dt>Monitoring</dt>
               <dd>
                 {site.monitoringEnd
@@ -116,6 +128,14 @@ export default async function PublicSitePage({
               <dt>Baseline count</dt>
               <dd>{site.plantedCount.toLocaleString()} plants</dd>
             </div>
+            <div>
+              <dt>Owner contact</dt>
+              <dd>{site.organizationContactEmail || site.ownerApproverEmail || 'Not published'}</dd>
+            </div>
+            <div>
+              <dt>Advisor contact</dt>
+              <dd>{site.scientificAdvisorContactEmail || 'Not published'}</dd>
+            </div>
           </dl>
 
           <StageEvidenceSummary evidence={site.stageEvidence} />
@@ -158,6 +178,13 @@ export default async function PublicSitePage({
       </article>
     </main>
   )
+}
+
+function displayType(value: string) {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function StageEvidenceSummary({ evidence }: { evidence: PublicPlantingEvidence[] }) {

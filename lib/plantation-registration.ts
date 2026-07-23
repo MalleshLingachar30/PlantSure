@@ -17,7 +17,6 @@ export type CreateProgramInput = {
   organizationId: string
   name: string
   escalationEmail: string
-  ownerApproverEmail?: string | null
   knowledgePartnerOrgId?: string | null
   implementerOrgId?: string | null
   monitoringYears?: number
@@ -144,6 +143,13 @@ type SiteForConfirmation = {
 
 type AcceptanceSnapshotSiteRow = {
   program_name: string
+  organization_name: string
+  organization_type: string
+  owner_approver_name: string | null
+  owner_approver_email: string
+  advisor_name: string
+  advisor_contact_name: string | null
+  advisor_contact_email: string | null
   location_id: string
   name: string
   district: string
@@ -186,7 +192,6 @@ export async function createPlantationProgram(
         insert into plantation_programs (
           organization_id,
           name,
-          owner_approver_email,
           knowledge_partner_org_id,
           implementer_org_id,
           monitoring_years,
@@ -201,15 +206,13 @@ export async function createPlantationProgram(
           $5,
           $6,
           $7,
-          $8,
-          $9
+          $8
         )
         returning id
       `,
       [
         input.organizationId,
         input.name,
-        input.ownerApproverEmail ?? null,
         input.knowledgePartnerOrgId ?? null,
         input.implementerOrgId ?? null,
         input.monitoringYears ?? 5,
@@ -816,6 +819,13 @@ async function acceptanceSnapshot(
     `
       select
         programs.name as program_name,
+        organizations.name as organization_name,
+        organizations.organization_type::text as organization_type,
+        organizations.owner_approver_name,
+        organizations.owner_approver_email,
+        advisors.name as advisor_name,
+        advisors.contact_name as advisor_contact_name,
+        advisors.contact_email as advisor_contact_email,
         sites.location_id,
         sites.name,
         sites.district,
@@ -833,6 +843,9 @@ async function acceptanceSnapshot(
         sites.plantation_type::text as plantation_type
       from plantation_sites sites
       join plantation_programs programs on programs.id = sites.program_id
+      join plantation_organizations organizations on organizations.id = programs.organization_id
+      join plantation_scientific_advisors advisors
+        on advisors.id = organizations.scientific_advisor_id
       where sites.id = $1
     `,
     [siteId],
@@ -859,6 +872,13 @@ async function acceptanceSnapshot(
 
   return {
     programName: site.program_name,
+    organizationName: site.organization_name,
+    organizationType: site.organization_type,
+    ownerApproverName: site.owner_approver_name,
+    ownerApproverEmail: site.owner_approver_email,
+    scientificAdvisorName: site.advisor_name,
+    scientificAdvisorContactName: site.advisor_contact_name,
+    scientificAdvisorContactEmail: site.advisor_contact_email,
     locationId: site.location_id,
     siteName: site.name,
     district: site.district,
@@ -932,7 +952,7 @@ async function queueAcceptanceRequestNotificationTx(
     `
       select
         acceptances.id as acceptance_id,
-        programs.owner_approver_email as recipient_email,
+        organizations.owner_approver_email as recipient_email,
         ('PlantSure approval request: ' || sites.location_id || ' - ' || sites.name) as subject,
         sites.location_id,
         sites.name as site_name,
@@ -941,6 +961,7 @@ async function queueAcceptanceRequestNotificationTx(
         sites.planted_count
       from plantation_sites sites
       join plantation_programs programs on programs.id = sites.program_id
+      join plantation_organizations organizations on organizations.id = programs.organization_id
       join plantation_acceptances acceptances on acceptances.site_id = sites.id
       where sites.id = $1
     `,
