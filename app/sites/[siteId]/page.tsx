@@ -25,13 +25,14 @@ export default async function SitePage({
   searchParams: Promise<{
     confirmed?: string
     submitted?: string
+    notified?: string
     approved?: string
     stage?: string
     checked?: string
     error?: string
   }>
 }) {
-  const [{ siteId }, { confirmed, submitted, approved, stage, checked, error }] = await Promise.all([
+  const [{ siteId }, { confirmed, submitted, notified, approved, stage, checked, error }] = await Promise.all([
     params,
     searchParams,
   ])
@@ -116,7 +117,21 @@ export default async function SitePage({
         {submitted && (
           <div className="admin-notice mt-6" role="status">
             <p className="eyebrow">Submitted</p>
-            <p className="mt-2 font-medium">The baseline was submitted for sponsor acceptance.</p>
+            <p className="mt-2 font-medium">
+              {notified === 'failed'
+                ? 'The baseline was submitted, but the owner approval email could not be delivered.'
+                : 'The baseline was submitted for sponsor acceptance.'}
+            </p>
+            {notified === 'sent' && (
+              <p className="mt-2 text-[14px]">
+                The owner approval email was sent to {site.ownerApproverEmail || 'the assigned approver account'}.
+              </p>
+            )}
+            {notified === 'failed' && (
+              <p className="mt-2 text-[14px]">
+                Check the Resend configuration or resend the approval request from the owner account flow.
+              </p>
+            )}
           </div>
         )}
         {approved && (

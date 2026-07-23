@@ -11,6 +11,7 @@ import {
   createPlantationSite,
   recordStageEvidenceAndAdvance,
   submitSiteForAcceptance,
+  submitSiteForAcceptanceWithNotification,
 } from '../lib/plantation-registration'
 import {
   markMissedAuditWindows,
@@ -450,6 +451,58 @@ test('acceptance submission and owner approval advance the site into accepted st
     assert.equal(acceptance.rows[0]?.accepted_role, 'primary')
     assert.ok(acceptance.rows[0]?.accepted_at)
     assert.equal(Array.isArray(acceptance.rows[0]?.accepted_snapshot?.species), true)
+  })
+})
+
+test('acceptance submission queues a pending owner approval email notification', async () => {
+  await withMigratedDatabase(async ({ client }) => {
+    const programId = await createProgram(client)
+    const siteId = await createSite(client, programId)
+
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'pits_dug',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-1.jpg'],
+      capturedAt: '2026-07-10T09:30:00',
+      uploadedByMemberId: memberId,
+    })
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'planted',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+      capturedAt: '2026-07-15T11:00:00',
+      uploadedByMemberId: memberId,
+    })
+
+    const notification = await submitSiteForAcceptanceWithNotification(client, {
+      siteId,
+      submittedByMemberId: memberId,
+    })
+
+    const queued = await client.query<{
+      recipient_email: string
+      subject: string
+      status: string
+      notification_type: string
+      channel: string
+    }>(
+      `
+        select recipient_email, subject, status::text, notification_type::text, channel::text
+        from plantation_notifications
+        where id = $1
+      `,
+      [notification.notificationId],
+    )
+
+    assert.equal(notification.recipientEmail, 'owner@example.com')
+    assert.equal(notification.locationId.startsWith('KA-TMK-GUB-'), true)
+    assert.equal(notification.plantedCount, 600)
+    assert.equal(notification.speciesSummary.length > 0, true)
+    assert.equal(queued.rows[0]?.recipient_email, 'owner@example.com')
+    assert.equal(queued.rows[0]?.status, 'pending')
+    assert.equal(queued.rows[0]?.notification_type, 'acceptance_request')
+    assert.equal(queued.rows[0]?.channel, 'email')
+    assert.match(queued.rows[0]?.subject ?? '', /PlantSure approval request:/)
   })
 })
 

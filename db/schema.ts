@@ -111,6 +111,20 @@ export const acceptanceRoleEnum = pgEnum('plantation_acceptance_role', [
   'fallback',
 ])
 
+export const notificationTypeEnum = pgEnum('plantation_notification_type', [
+  'acceptance_request',
+])
+
+export const notificationChannelEnum = pgEnum('plantation_notification_channel', [
+  'email',
+])
+
+export const notificationStatusEnum = pgEnum('plantation_notification_status', [
+  'pending',
+  'sent',
+  'failed',
+])
+
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -426,3 +440,37 @@ export const plantationAcceptances = pgTable('plantation_acceptances', {
   rejectionReason: text('rejection_reason'),
   rejectedAsAdmin: boolean('rejected_as_admin').default(false).notNull(),
 })
+
+export const plantationNotifications = pgTable(
+  'plantation_notifications',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => plantationSites.id, { onDelete: 'restrict' }),
+    acceptanceId: uuid('acceptance_id').references(() => plantationAcceptances.id, {
+      onDelete: 'restrict',
+    }),
+    notificationType: notificationTypeEnum('notification_type').notNull(),
+    channel: notificationChannelEnum('channel').default('email').notNull(),
+    recipientEmail: text('recipient_email').notNull(),
+    subject: text('subject').notNull(),
+    status: notificationStatusEnum('status').default('pending').notNull(),
+    provider: text('provider'),
+    providerMessageId: text('provider_message_id'),
+    errorMessage: text('error_message'),
+    triggeredByMemberId: uuid('triggered_by_member_id').references(() => plantationMembers.id, {
+      onDelete: 'restrict',
+    }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => ({
+    siteTypeIdx: index('plantation_notifications_site_type_idx').on(
+      table.siteId,
+      table.notificationType,
+    ),
+    acceptanceIdx: index('plantation_notifications_acceptance_id_idx').on(table.acceptanceId),
+    statusIdx: index('plantation_notifications_status_idx').on(table.status),
+  }),
+)

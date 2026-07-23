@@ -88,6 +88,20 @@ export type ConfirmCountsResult = {
   alreadyConfirmed: boolean
 }
 
+export type AcceptanceRequestNotificationPayload = {
+  notificationId: string
+  acceptanceId: string
+  recipientEmail: string
+  subject: string
+  siteId: string
+  locationId: string
+  siteName: string
+  programName: string
+  plantingDate: string
+  plantedCount: number
+  speciesSummary: Array<{ speciesName: string; plantedCount: number }>
+}
+
 export type LifecycleStage =
   | 'land_identified'
   | 'land_verified'
@@ -547,26 +561,20 @@ export async function submitSiteForAcceptance(
   },
 ): Promise<LifecycleStage> {
   return transaction(db, async (tx) => {
-    await tx.query(
-      `
-        insert into plantation_acceptances (
-          site_id,
-          submitted_by
-        ) values (
-          $1,
-          $2
-        )
-        on conflict (site_id) do nothing
-      `,
-      [input.siteId, input.submittedByMemberId],
-    )
+    return submitSiteForAcceptanceTx(tx, input)
+  })
+}
 
-    return advanceSiteStage(tx, {
-      siteId: input.siteId,
-      toStage: 'submitted_for_acceptance',
-      actor: input.submittedByMemberId,
-      notes: 'Baseline submitted for acceptance',
-    })
+export async function submitSiteForAcceptanceWithNotification(
+  db: TransactionRunner,
+  input: {
+    siteId: string
+    submittedByMemberId: string
+  },
+): Promise<AcceptanceRequestNotificationPayload> {
+  return transaction(db, async (tx) => {
+    await submitSiteForAcceptanceTx(tx, input)
+    return queueAcceptanceRequestNotificationTx(tx, input)
   })
 }
 
@@ -754,6 +762,52 @@ export async function recordStageEvidenceAndAdvance(
   })
 }
 
+export async function markAcceptanceRequestNotificationSent(
+  db: Queryable,
+  input: {
+    notificationId: string
+    provider: string
+    providerMessageId?: string | null
+  },
+): Promise<void> {
+  await db.query(
+    `
+      update plantation_notifications
+      set
+        status = 'sent',
+        provider = $2,
+        provider_message_id = $3,
+        error_message = null,
+        sent_at = now(),
+        updated_at = now()
+      where id = $1
+    `,
+    [input.notificationId, input.provider, input.providerMessageId ?? null],
+  )
+}
+
+export async function markAcceptanceRequestNotificationFailed(
+  db: Queryable,
+  input: {
+    notificationId: string
+    provider: string
+    errorMessage: string
+  },
+): Promise<void> {
+  await db.query(
+    `
+      update plantation_notifications
+      set
+        status = 'failed',
+        provider = $2,
+        error_message = $3,
+        updated_at = now()
+      where id = $1
+    `,
+    [input.notificationId, input.provider, input.errorMessage],
+  )
+}
+
 async function acceptanceSnapshot(
   tx: TransactionClient,
   siteId: string,
@@ -825,6 +879,142 @@ async function acceptanceSnapshot(
       plantedCount: row.planted_count,
       spacingNotes: row.spacing_notes,
       placement: row.placement,
+    })),
+  }
+}
+
+async function submitSiteForAcceptanceTx(
+  tx: TransactionClient,
+  input: {
+    siteId: string
+    submittedByMemberId: string
+  },
+): Promise<LifecycleStage> {
+  await tx.query(
+    `
+      insert into plantation_acceptances (
+        site_id,
+        submitted_by
+      ) values (
+        $1,
+        $2
+      )
+      on conflict (site_id) do nothing
+    `,
+    [input.siteId, input.submittedByMemberId],
+  )
+
+  return advanceSiteStage(tx, {
+    siteId: input.siteId,
+    toStage: 'submitted_for_acceptance',
+    actor: input.submittedByMemberId,
+    notes: 'Baseline submitted for acceptance',
+  })
+}
+
+async function queueAcceptanceRequestNotificationTx(
+  tx: TransactionClient,
+  input: {
+    siteId: string
+    submittedByMemberId: string
+  },
+): Promise<AcceptanceRequestNotificationPayload> {
+  const siteResult = await tx.query<{
+    acceptance_id: string
+    recipient_email: string | null
+    subject: string
+    location_id: string
+    site_name: string
+    program_name: string
+    planting_date: Date | string
+    planted_count: number
+  }>(
+    `
+      select
+        acceptances.id as acceptance_id,
+        programs.owner_approver_email as recipient_email,
+        ('PlantSure approval request: ' || sites.location_id || ' - ' || sites.name) as subject,
+        sites.location_id,
+        sites.name as site_name,
+        programs.name as program_name,
+        sites.planting_date,
+        sites.planted_count
+      from plantation_sites sites
+      join plantation_programs programs on programs.id = sites.program_id
+      join plantation_acceptances acceptances on acceptances.site_id = sites.id
+      where sites.id = $1
+    `,
+    [input.siteId],
+  )
+  const speciesResult = await tx.query<{
+    species_name: string
+    planted_count: number
+  }>(
+    `
+      select species_name, planted_count
+      from plantation_batch_species
+      where site_id = $1
+      order by species_name
+    `,
+    [input.siteId],
+  )
+  const site = siteResult.rows[0]
+
+  if (!site?.acceptance_id) {
+    throw new Error('Submitted acceptance record not found')
+  }
+
+  if (!site.recipient_email?.trim()) {
+    throw new Error('Programme owner approval email is not configured')
+  }
+
+  const notificationResult = await tx.query<{ id: string }>(
+    `
+      insert into plantation_notifications (
+        site_id,
+        acceptance_id,
+        notification_type,
+        recipient_email,
+        subject,
+        triggered_by_member_id
+      ) values (
+        $1,
+        $2,
+        'acceptance_request',
+        $3,
+        $4,
+        $5
+      )
+      returning id
+    `,
+    [
+      input.siteId,
+      site.acceptance_id,
+      site.recipient_email.trim(),
+      site.subject,
+      input.submittedByMemberId,
+    ],
+  )
+  const notificationId = notificationResult.rows[0]?.id
+
+  if (!notificationId) {
+    throw new Error('Failed to create acceptance notification record')
+  }
+
+  return {
+    notificationId,
+    acceptanceId: site.acceptance_id,
+    recipientEmail: site.recipient_email.trim(),
+    subject: site.subject,
+    siteId: input.siteId,
+    locationId: site.location_id,
+    siteName: site.site_name,
+    programName: site.program_name,
+    plantingDate: dateString(site.planting_date),
+    plantedCount: site.planted_count,
+    speciesSummary: speciesResult.rows.map((row) => ({
+      speciesName: row.species_name,
+      plantedCount: row.planted_count,
     })),
   }
 }

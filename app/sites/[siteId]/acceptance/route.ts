@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { sendAcceptanceRequestEmail } from '@/lib/acceptance-request-email'
 import {
   requirePlantationMember,
   requireProgramOwnerApproverForSite,
@@ -8,7 +9,9 @@ import {
 import { withDatabase } from '@/lib/db'
 import {
   acceptSiteAsSponsor,
-  submitSiteForAcceptance,
+  markAcceptanceRequestNotificationFailed,
+  markAcceptanceRequestNotificationSent,
+  submitSiteForAcceptanceWithNotification,
 } from '@/lib/plantation-registration'
 
 const acceptanceSchema = z.object({
@@ -27,17 +30,53 @@ export async function POST(
     return redirectToSite(request, siteId, 'acceptance')
   }
 
-  try {
-    await withDatabase(async (client) => {
-      if (parsed.data.action === 'submit') {
+  if (parsed.data.action === 'submit') {
+    try {
+      const notification = await withDatabase(async (client) => {
         const member = await requirePlantationMember(client, ['admin', 'manager'])
-        await submitSiteForAcceptance(client, {
+        return submitSiteForAcceptanceWithNotification(client, {
           siteId,
           submittedByMemberId: member.id,
         })
-        return
+      })
+
+      let notified: 'sent' | 'failed' = 'sent'
+
+      try {
+        const delivery = await sendAcceptanceRequestEmail(notification)
+        await withDatabase((client) =>
+          markAcceptanceRequestNotificationSent(client, {
+            notificationId: notification.notificationId,
+            provider: delivery.provider,
+            providerMessageId: delivery.providerMessageId,
+          }),
+        )
+      } catch (error) {
+        notified = 'failed'
+        await withDatabase((client) =>
+          markAcceptanceRequestNotificationFailed(client, {
+            notificationId: notification.notificationId,
+            provider: 'resend',
+            errorMessage:
+              error instanceof Error ? error.message.slice(0, 500) : 'Email delivery failed',
+          }),
+        )
       }
 
+      revalidatePath('/admin')
+      revalidatePath(`/sites/${siteId}`)
+
+      return NextResponse.redirect(
+        new URL(`/sites/${siteId}?submitted=1&notified=${notified}`, request.url),
+        303,
+      )
+    } catch {
+      return redirectToSite(request, siteId, 'acceptance')
+    }
+  }
+
+  try {
+    await withDatabase(async (client) => {
       const member = await requireProgramOwnerApproverForSite(client, siteId)
       await acceptSiteAsSponsor(client, {
         siteId,
@@ -52,8 +91,7 @@ export async function POST(
   revalidatePath('/admin')
   revalidatePath(`/sites/${siteId}`)
 
-  const searchParam = parsed.data.action === 'submit' ? 'submitted=1' : 'approved=1'
-  return NextResponse.redirect(new URL(`/sites/${siteId}?${searchParam}`, request.url), 303)
+  return NextResponse.redirect(new URL(`/sites/${siteId}?approved=1`, request.url), 303)
 }
 
 function redirectToSite(request: Request, siteId: string, error: string) {
