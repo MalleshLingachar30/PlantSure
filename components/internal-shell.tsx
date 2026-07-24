@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
+  ClipboardCheck,
   ClipboardList,
   Home,
   MapPinned,
@@ -13,7 +14,7 @@ import {
   type SiteWorkflowMenuProps,
 } from '@/components/site-workflow-nav'
 
-type InternalSection = 'register' | 'sites'
+type InternalSection = 'register' | 'sites' | 'auditor'
 
 type InternalShellProps = {
   active: InternalSection
@@ -39,6 +40,12 @@ const navigation: Array<{
     label: 'View records',
     href: '/admin#sites',
     icon: MapPinned,
+  },
+  {
+    key: 'auditor',
+    label: 'My audits',
+    href: '/auditor',
+    icon: ClipboardCheck,
   },
 ]
 

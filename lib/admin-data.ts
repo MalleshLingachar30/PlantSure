@@ -64,6 +64,7 @@ export type AdminSiteDetail = AdminSiteSummary & {
   stageEvidence: AdminStageEvidence[]
   species: AdminBatchSpecies[]
   auditors: AdminSiteAuditor[]
+  auditAssignments: AdminAuditAssignment[]
   acceptance: AdminSiteAcceptance | null
 }
 
@@ -73,6 +74,18 @@ export type AdminSiteAuditor = {
   displayName: string | null
   active: boolean
   createdAt: string
+}
+
+export type AdminAuditAssignment = {
+  id: string
+  windowId: string
+  siteAuditorId: string
+  auditorEmail: string
+  auditorName: string | null
+  status: string
+  assignedAt: string
+  acceptedAt: string | null
+  submittedAt: string | null
 }
 
 export type AdminSiteAcceptance = {
@@ -345,6 +358,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     stageEvidence,
     species,
     auditors,
+    auditAssignments,
     acceptance,
   } = await withDatabase(async (client) => {
     const detailResult = await client.query<{
@@ -461,6 +475,37 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       `,
       [siteId],
     )
+    const auditAssignmentsResult = await client.query<{
+      id: string
+      window_id: string
+      site_auditor_id: string
+      auditor_email: string
+      auditor_name: string | null
+      status: string
+      assigned_at: Date | string
+      accepted_at: Date | string | null
+      submitted_at: Date | string | null
+    }>(
+      `
+        select
+          assignments.id,
+          assignments.window_id,
+          assignments.site_auditor_id,
+          assignments.auditor_email,
+          site_auditors.display_name as auditor_name,
+          assignments.status,
+          assignments.assigned_at,
+          assignments.accepted_at,
+          assignments.submitted_at
+        from plantation_audit_assignments assignments
+        left join plantation_site_auditors site_auditors
+          on site_auditors.id = assignments.site_auditor_id
+        where assignments.site_id = $1
+          and assignments.status in ('assigned', 'accepted', 'submitted')
+        order by assignments.assigned_at desc
+      `,
+      [siteId],
+    )
     const acceptanceResult = await client.query<{
       submitted_at: Date | string
       submitted_by_name: string | null
@@ -517,6 +562,17 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         active: row.active,
         createdAt: timestampDateString(row.created_at),
       })),
+      auditAssignments: auditAssignmentsResult.rows.map((row) => ({
+        id: row.id,
+        windowId: row.window_id,
+        siteAuditorId: row.site_auditor_id,
+        auditorEmail: row.auditor_email,
+        auditorName: row.auditor_name,
+        status: row.status,
+        assignedAt: timestampDateString(row.assigned_at),
+        acceptedAt: row.accepted_at ? timestampDateString(row.accepted_at) : null,
+        submittedAt: row.submitted_at ? timestampDateString(row.submitted_at) : null,
+      })),
       acceptance: acceptanceResult.rows[0]
         ? {
             submittedAt: timestampDateString(acceptanceResult.rows[0].submitted_at),
@@ -565,6 +621,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     stageEvidence,
     species,
     auditors,
+    auditAssignments,
     acceptance,
   }
 }

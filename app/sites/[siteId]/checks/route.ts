@@ -1,6 +1,10 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import {
+  hasAcceptedAuditAssignment,
+  markAuditAssignmentSubmitted,
+} from '@/lib/audit-assignments'
 import { requireSiteAuditorForSite } from '@/lib/auth-member'
 import { recordAuditCheck } from '@/lib/plantation-checks'
 import { withDatabase } from '@/lib/db'
@@ -55,8 +59,25 @@ export async function POST(
       const member = await requireSiteAuditorForSite(client, siteId, {
         allowAdmin: input.returnTo !== 'public',
       })
+      const memberEmail = member.email?.trim().toLowerCase() ?? null
 
-      return recordAuditCheck(client, {
+      if (input.returnTo === 'public') {
+        if (!memberEmail) {
+          throw new Error('Accepted audit assignment is required')
+        }
+
+        const accepted = await hasAcceptedAuditAssignment(client, {
+          siteId,
+          windowId: input.windowId,
+          email: memberEmail,
+        })
+
+        if (!accepted) {
+          throw new Error('Accepted audit assignment is required')
+        }
+      }
+
+      const result = await recordAuditCheck(client, {
         windowId: input.windowId,
         auditorMemberId: member.id,
         auditedAt: input.auditedAt,
@@ -68,12 +89,22 @@ export async function POST(
         gpsStatus: input.gpsStatus,
         remarks: input.remarks || null,
       })
+
+      if (input.returnTo === 'public' && memberEmail) {
+        await markAuditAssignmentSubmitted(client, {
+          siteId,
+          windowId: input.windowId,
+          auditorEmail: memberEmail,
+        })
+      }
+
+      return result
     })
   } catch (error) {
     console.error('Failed to record audit check', error)
     if (
       error instanceof Error &&
-      error.message === 'Registered site auditor access is required'
+      ['Registered site auditor access is required', 'Accepted audit assignment is required'].includes(error.message)
     ) {
       return redirectToSite(request, siteId, returnTarget, 'auditor_access')
     }

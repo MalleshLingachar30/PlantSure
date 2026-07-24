@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Camera, ExternalLink, Mail, PanelTop, ShieldCheck, UserPlus } from 'lucide-react'
+import { Camera, ClipboardCheck, ExternalLink, Mail, PanelTop, ShieldCheck, UserPlus } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { requirePlantationMember } from '@/lib/auth-member'
 import {
@@ -30,12 +30,13 @@ export default async function SitePage({
     stage?: string
     checked?: string
     auditor?: string
+    assignment?: string
     invited?: string
     error?: string
     console?: string
   }>
 }) {
-  const [{ siteId }, { confirmed, submitted, notified, approved, stage, checked, auditor, invited, error, console }] = await Promise.all([
+  const [{ siteId }, { confirmed, submitted, notified, approved, stage, checked, auditor, assignment, invited, error, console }] = await Promise.all([
     params,
     searchParams,
   ])
@@ -179,6 +180,14 @@ export default async function SitePage({
               {invited === 'failed'
                 ? 'The site gate is active, but the Clerk invitation could not be sent. Ask the auditor to sign up with the same registered email.'
                 : 'If the auditor does not already have a Clerk account, an invitation was sent with the QR audit link.'}
+            </p>
+          </div>
+        )}
+        {assignment && (
+          <div className="admin-notice mt-6" role="status">
+            <p className="eyebrow">Audit assigned</p>
+            <p className="mt-2 font-medium">
+              The selected audit window is now a work order on the auditor dashboard.
             </p>
           </div>
         )}
@@ -354,6 +363,7 @@ export default async function SitePage({
 
         <QrAuditPanel site={site} />
         <SiteAuditorsPanel site={site} canManage={canManageAuditors} />
+        <AuditAssignmentsPanel site={site} canManage={canManageAuditors} />
       </div>
     </InternalShell>
   )
@@ -900,6 +910,134 @@ function SiteAuditorsPanel({
   )
 }
 
+function AuditAssignmentsPanel({
+  site,
+  canManage,
+}: {
+  site: AdminSiteDetail
+  canManage: boolean
+}) {
+  const activeAuditors = site.auditors.filter((auditor) => auditor.active)
+  const activeAssignmentWindowIds = new Set(
+    site.auditAssignments
+      .filter((assignment) => ['assigned', 'accepted'].includes(assignment.status))
+      .map((assignment) => assignment.windowId),
+  )
+  const availableWindows = site.windows.filter(
+    (window) => window.status === 'scheduled' && !activeAssignmentWindowIds.has(window.id),
+  )
+  const assignmentByWindow = new Map(
+    site.auditAssignments.map((assignment) => [assignment.windowId, assignment]),
+  )
+
+  return (
+    <section className="admin-panel mt-7" aria-labelledby="audit-assignments-heading">
+      <div className="admin-panel-header">
+        <div>
+          <p className="eyebrow">Audit work orders</p>
+          <h2 id="audit-assignments-heading" className="section-title mt-1">
+            Allocate available checks
+          </h2>
+        </div>
+        <span className="public-status-pill">
+          {site.auditAssignments.filter((assignment) => assignment.status !== 'submitted').length} open
+        </span>
+      </div>
+
+      <div className="grid gap-5 p-5 sm:p-6">
+        <p className="body-copy">
+          Assign scheduled audit windows to registered auditors. The auditor
+          accepts the order on their dashboard before going to the site and
+          scanning the board QR.
+        </p>
+
+        {site.windows.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Window</th>
+                  <th>Due</th>
+                  <th>Assignment</th>
+                  <th>Auditor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {site.windows.map((window) => {
+                  const assignment = assignmentByWindow.get(window.id)
+
+                  return (
+                    <tr key={window.id}>
+                      <td className="mono">{window.cycleLabel}</td>
+                      <td>{window.dueDate}</td>
+                      <td>{assignment ? assignmentStatusText(assignment.status) : statusText(window.status)}</td>
+                      <td>
+                        {assignment
+                          ? assignment.auditorName || assignment.auditorEmail
+                          : window.status === 'scheduled'
+                            ? 'Available'
+                            : 'Not available'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {canManage ? (
+          <form action={`/sites/${site.id}/audit-assignments`} method="post" className="grid gap-4">
+            <div className="form-section-line">
+              <div>
+                <p className="eyebrow">Assign order</p>
+                <h3 className="section-title mt-1">Choose window and auditor</h3>
+              </div>
+              <ClipboardCheck size={22} aria-hidden="true" style={{ color: 'var(--alive)' }} />
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Available audit window</span>
+                <select className="input" name="windowId" required disabled={availableWindows.length === 0}>
+                  <option value="">Select a scheduled check</option>
+                  {availableWindows.map((window) => (
+                    <option key={window.id} value={window.id}>
+                      {window.cycleLabel} · due {window.dueDate}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Registered auditor</span>
+                <select className="input" name="siteAuditorId" required disabled={activeAuditors.length === 0}>
+                  <option value="">Select an auditor</option>
+                  {activeAuditors.map((auditor) => (
+                    <option key={auditor.id} value={auditor.id}>
+                      {auditor.displayName || auditor.email} · {auditor.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button
+              className="command-button justify-self-start"
+              type="submit"
+              disabled={availableWindows.length === 0 || activeAuditors.length === 0}
+            >
+              <ClipboardCheck size={16} aria-hidden="true" />
+              Allocate audit order
+            </button>
+          </form>
+        ) : (
+          <p className="body-copy text-[14px]">
+            Audit allocation is managed from a PlantSure admin account.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function isWindowOpenForCheck(window: AdminAuditWindow, today: string): boolean {
   return (
     window.status === 'scheduled' &&
@@ -1070,6 +1208,10 @@ function siteActionErrorMessage(error: string): string {
     return 'Only a PlantSure admin or an active registered auditor for this site can record the QR audit.'
   }
 
+  if (error === 'assignment') {
+    return 'Choose an available scheduled window and an active registered auditor. The window may already be assigned.'
+  }
+
   return 'Check the evidence fields and try again.'
 }
 
@@ -1170,6 +1312,26 @@ function statusText(status: string): string {
 
   if (status === 'waived') {
     return 'Not required'
+  }
+
+  return status
+}
+
+function assignmentStatusText(status: string): string {
+  if (status === 'assigned') {
+    return 'Assigned'
+  }
+
+  if (status === 'accepted') {
+    return 'Accepted'
+  }
+
+  if (status === 'submitted') {
+    return 'Submitted'
+  }
+
+  if (status === 'cancelled') {
+    return 'Cancelled'
   }
 
   return status

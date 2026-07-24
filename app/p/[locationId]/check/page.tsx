@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { AlertTriangle, ArrowLeft, QrCode } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ClipboardCheck, QrCode } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { AuditCheckForm } from '@/components/audit-check-form'
 import { SignOutControl } from '@/components/sign-out-control'
+import { hasAcceptedAuditAssignment } from '@/lib/audit-assignments'
 import { getSiteAuditorAccess } from '@/lib/auth-member'
 import type { AdminAuditWindow } from '@/lib/admin-data'
 import { getPublicSiteByLocationId } from '@/lib/admin-data'
@@ -35,8 +36,21 @@ export default async function PublicAuditCheckPage({
   const checkPath = invitedEmail
     ? `/p/${site.locationId}/check?invited=${encodeURIComponent(invitedEmail)}`
     : `/p/${site.locationId}/check`
+  const today = new Date().toISOString().slice(0, 10)
+  const window = site.auditVisits.find((item) => isWindowOpenForCheck(item, today)) ?? null
+  const assignmentAccepted =
+    access.allowed && window && signedInEmail
+      ? await withDatabase((client) =>
+          hasAcceptedAuditAssignment(client, {
+            siteId: site.id,
+            windowId: window.id,
+            email: signedInEmail,
+          }),
+        )
+      : false
+  const missingAcceptedAssignment = Boolean(access.allowed && window && !assignmentAccepted)
 
-  if (!access.allowed || invitationEmailMismatch) {
+  if (!access.allowed || invitationEmailMismatch || missingAcceptedAssignment) {
     return (
       <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-10">
         <article className="public-record mx-auto" aria-labelledby="qr-check-heading">
@@ -56,18 +70,26 @@ export default async function PublicAuditCheckPage({
 
             <div className="admin-notice mt-5" role="alert">
               <p className="eyebrow">
-                {invitationEmailMismatch ? 'Use invited auditor email' : 'Registered auditor required'}
+                {invitationEmailMismatch
+                  ? 'Use invited auditor email'
+                  : missingAcceptedAssignment
+                    ? 'Accept audit order first'
+                    : 'Registered auditor required'}
               </p>
               <p className="mt-2 font-medium">
                 {invitationEmailMismatch
                   ? `This invitation is for ${invitedEmail}. Sign out, then accept the invitation or sign in with that email.`
-                  : 'This QR audit can only be recorded by an active auditor email attached to this planting site.'}
+                  : missingAcceptedAssignment
+                    ? 'Open My audits, accept this audit order, then scan the site board QR at the plantation.'
+                    : 'This QR audit can only be recorded by an active auditor email attached to this planting site.'}
               </p>
               <p className="mt-2 text-[14px]">
                 You are signed in as {member.email || 'an account without an email'}.
                 {invitationEmailMismatch
                   ? ' The current browser session belongs to a different account.'
-                  : ' Ask the PlantSure admin to register this exact email on the site, or sign out and continue with the registered auditor email.'}
+                  : missingAcceptedAssignment
+                    ? ' Assignment acceptance is required before field capture starts.'
+                    : ' Ask the PlantSure admin to register this exact email on the site, or sign out and continue with the registered auditor email.'}
               </p>
             </div>
 
@@ -81,6 +103,12 @@ export default async function PublicAuditCheckPage({
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
+              {missingAcceptedAssignment && (
+                <Link className="command-button" href="/auditor">
+                  <ClipboardCheck size={16} aria-hidden="true" />
+                  <span>Open My audits</span>
+                </Link>
+              )}
               <Link className="secondary-button" href={`/p/${site.locationId}`}>
                 <ArrowLeft size={16} aria-hidden="true" />
                 <span>Back to public record</span>
@@ -92,8 +120,6 @@ export default async function PublicAuditCheckPage({
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
-  const window = site.auditVisits.find((item) => isWindowOpenForCheck(item, today)) ?? null
   const nextScheduledWindow = site.auditVisits.find(
     (item) => item.status === 'scheduled' && item.dueDate > today,
   )
