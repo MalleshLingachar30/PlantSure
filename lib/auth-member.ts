@@ -106,10 +106,12 @@ export async function requireAdminMember(db: Queryable): Promise<AuthenticatedMe
 export async function getSiteAuditorAccess(
   db: Queryable,
   siteId: string,
+  options: { allowAdmin?: boolean } = {},
 ): Promise<SiteAuditorAccess> {
   const member = await requirePlantationMember(db)
+  const allowAdmin = options.allowAdmin ?? true
 
-  if (member.role === 'admin') {
+  if (allowAdmin && member.role === 'admin') {
     return { member, allowed: true, reason: 'admin' }
   }
 
@@ -141,8 +143,9 @@ export async function getSiteAuditorAccess(
 export async function requireSiteAuditorForSite(
   db: Queryable,
   siteId: string,
+  options: { allowAdmin?: boolean } = {},
 ): Promise<AuthenticatedMember> {
-  const access = await getSiteAuditorAccess(db, siteId)
+  const access = await getSiteAuditorAccess(db, siteId, options)
 
   if (!access.allowed) {
     throw new Error('Registered site auditor access is required')

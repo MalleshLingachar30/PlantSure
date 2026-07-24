@@ -52,7 +52,9 @@ export async function POST(
 
   try {
     await withDatabase(async (client) => {
-      const member = await requireSiteAuditorForSite(client, siteId)
+      const member = await requireSiteAuditorForSite(client, siteId, {
+        allowAdmin: input.returnTo !== 'public',
+      })
 
       return recordAuditCheck(client, {
         windowId: input.windowId,

@@ -16,20 +16,27 @@ export default async function PublicAuditCheckPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; invited?: string }>
 }) {
-  const [{ locationId }, { error }] = await Promise.all([params, searchParams])
+  const [{ locationId }, { error, invited }] = await Promise.all([params, searchParams])
   const site = await getPublicSiteByLocationId(decodeURIComponent(locationId))
 
   if (!site) {
     notFound()
   }
 
-  const access = await withDatabase((client) => getSiteAuditorAccess(client, site.id))
+  const access = await withDatabase((client) =>
+    getSiteAuditorAccess(client, site.id, { allowAdmin: false }),
+  )
   const member = access.member
-  const checkPath = `/p/${site.locationId}/check`
+  const invitedEmail = invited?.trim().toLowerCase() || null
+  const signedInEmail = member.email?.trim().toLowerCase() ?? null
+  const invitationEmailMismatch = Boolean(invitedEmail && signedInEmail !== invitedEmail)
+  const checkPath = invitedEmail
+    ? `/p/${site.locationId}/check?invited=${encodeURIComponent(invitedEmail)}`
+    : `/p/${site.locationId}/check`
 
-  if (!access.allowed) {
+  if (!access.allowed || invitationEmailMismatch) {
     return (
       <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-10">
         <article className="public-record mx-auto" aria-labelledby="qr-check-heading">
@@ -48,15 +55,19 @@ export default async function PublicAuditCheckPage({
             </div>
 
             <div className="admin-notice mt-5" role="alert">
-              <p className="eyebrow">Registered auditor required</p>
+              <p className="eyebrow">
+                {invitationEmailMismatch ? 'Use invited auditor email' : 'Registered auditor required'}
+              </p>
               <p className="mt-2 font-medium">
-                This QR audit can only be recorded by a PlantSure admin or an
-                active auditor email attached to this planting site.
+                {invitationEmailMismatch
+                  ? `This invitation is for ${invitedEmail}. Sign out, then accept the invitation or sign in with that email.`
+                  : 'This QR audit can only be recorded by an active auditor email attached to this planting site.'}
               </p>
               <p className="mt-2 text-[14px]">
                 You are signed in as {member.email || 'an account without an email'}.
-                Ask the PlantSure admin to register this exact email on the site,
-                or sign out and continue with the registered auditor email.
+                {invitationEmailMismatch
+                  ? ' The current browser session belongs to a different account.'
+                  : ' Ask the PlantSure admin to register this exact email on the site, or sign out and continue with the registered auditor email.'}
               </p>
             </div>
 

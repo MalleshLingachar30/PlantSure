@@ -38,7 +38,9 @@ export async function ensureAuditorInvitation(
 
   await client.invitations.createInvitation({
     emailAddress: email,
-    redirectUrl: siteUrl(`/p/${payload.locationId}/check`),
+    redirectUrl: siteUrl(
+      `/p/${payload.locationId}/check?invited=${encodeURIComponent(email)}`,
+    ),
     publicMetadata: {
       plantsureRole: 'auditor',
       siteId: payload.siteId,
@@ -47,4 +49,3 @@ export async function ensureAuditorInvitation(
     notify: true,
   })
 }
-
