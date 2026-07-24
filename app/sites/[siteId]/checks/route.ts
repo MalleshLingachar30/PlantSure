@@ -42,11 +42,14 @@ export async function POST(
   const input = parsed.data
   const photoUrls = parsePhotoUrls(input.auditPhotoUrls)
   const speciesResults = parseAuditSpeciesRows(formData)
+  const fieldQrCheck = input.returnTo === 'public'
 
   if (
     !photoUrls ||
     photoUrls.length === 0 ||
     !speciesResults ||
+    (fieldQrCheck && !hasCapturedFieldEvidence(photoUrls)) ||
+    (fieldQrCheck && (!input.auditLatitude || !input.auditLongitude || !input.auditGpsAccuracy)) ||
     (input.auditLatitude && !decimalCoordinateSchema.safeParse(input.auditLatitude).success) ||
     (input.auditLongitude && !decimalCoordinateSchema.safeParse(input.auditLongitude).success) ||
     (input.auditGpsAccuracy && !decimalNonNegativeSchema.safeParse(input.auditGpsAccuracy).success)
@@ -166,18 +169,30 @@ function parsePhotoUrls(value: string | undefined): string[] | null {
   }
 
   for (const url of urls) {
-    try {
-      const parsed = new URL(url)
-
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return null
-      }
-    } catch {
+    if (!isValidEvidenceUrl(url)) {
       return null
     }
   }
 
   return urls
+}
+
+function hasCapturedFieldEvidence(urls: string[]): boolean {
+  return urls.some((url) => url.startsWith('data:image/'))
+}
+
+function isValidEvidenceUrl(url: string): boolean {
+  if (/^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(url)) {
+    return url.length <= 2_500_000
+  }
+
+  try {
+    const parsed = new URL(url)
+
+    return ['http:', 'https:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
 }
 
 function returnTargetFromForm(rawInput: Record<string, FormDataEntryValue>): {

@@ -822,6 +822,112 @@
     gap: 0.75rem;
   }
 
+  .field-capture-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 720px) {
+    .field-capture-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+  }
+
+  .field-capture-card {
+    min-width: 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 1rem;
+  }
+
+  .capture-photo-input {
+    position: relative;
+    display: inline-flex;
+    min-height: 46px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    overflow: hidden;
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--ink);
+    padding: 0.7rem 0.95rem;
+    color: var(--paper);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .capture-photo-input input {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    opacity: 0;
+  }
+
+  .capture-preview {
+    margin-top: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+  }
+
+  .capture-preview img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .capture-preview figcaption,
+  .capture-status,
+  .capture-error {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .capture-preview figcaption {
+    border-top: 1px solid var(--rule);
+    padding: 0.65rem 0.75rem;
+  }
+
+  .capture-error {
+    color: var(--overdue);
+  }
+
+  .capture-facts {
+    display: grid;
+    gap: 0.5rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 0.75rem;
+  }
+
+  .capture-facts div {
+    display: flex;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .capture-facts dt {
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .capture-facts dd {
+    color: var(--ink);
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
   .field-hint {
     color: var(--ink-soft);
     font-size: 13px;
