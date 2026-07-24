@@ -14,7 +14,7 @@ const auditCheckSchema = z.object({
   returnTo: z.enum(['console', 'public']).optional(),
   locationId: z.string().trim().optional(),
   auditedAt: z.string().trim().min(1),
-  auditPhotoUrls: z.string().trim().min(1),
+  auditPhotoUrls: z.string().trim().optional(),
   auditLatitude: z.string().trim().optional(),
   auditLongitude: z.string().trim().optional(),
   auditGpsAccuracy: z.string().trim().optional(),
@@ -24,6 +24,8 @@ const auditCheckSchema = z.object({
 
 const decimalCoordinateSchema = z.string().trim().regex(/^-?\d+(\.\d+)?$/)
 const decimalNonNegativeSchema = z.string().trim().regex(/^\d+(\.\d+)?$/)
+
+export const runtime = 'nodejs'
 
 export async function POST(
   request: Request,
@@ -40,7 +42,10 @@ export async function POST(
   }
 
   const input = parsed.data
-  const photoUrls = parsePhotoUrls(input.auditPhotoUrls)
+  const photoUrls = await parsePhotoEvidence(
+    input.auditPhotoUrls,
+    formData.get('auditPhotoFile'),
+  )
   const speciesResults = parseAuditSpeciesRows(formData)
   const fieldQrCheck = input.returnTo === 'public'
 
@@ -154,6 +159,31 @@ function parseAuditSpeciesRows(formData: FormData) {
   return rows.length > 0 ? rows : null
 }
 
+async function parsePhotoEvidence(
+  value: string | undefined,
+  fileEntry: FormDataEntryValue | null,
+): Promise<string[] | null> {
+  const urls = parsePhotoUrls(value)
+
+  if (urls && urls.length > 0) {
+    return urls
+  }
+
+  if (!(fileEntry instanceof File) || fileEntry.size === 0) {
+    return urls
+  }
+
+  if (!fileEntry.type.startsWith('image/') || fileEntry.size > 2_500_000) {
+    return null
+  }
+
+  const bytes = Buffer.from(await fileEntry.arrayBuffer())
+  const mimeType = normalizedImageMimeType(fileEntry.type)
+  const dataUrl = `data:${mimeType};base64,${bytes.toString('base64')}`
+
+  return isValidEvidenceUrl(dataUrl) ? [dataUrl] : null
+}
+
 function parsePhotoUrls(value: string | undefined): string[] | null {
   if (!value) {
     return []
@@ -182,7 +212,7 @@ function hasCapturedFieldEvidence(urls: string[]): boolean {
 }
 
 function isValidEvidenceUrl(url: string): boolean {
-  if (/^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(url)) {
+  if (/^data:image\/(?:jpeg|jpg|png|webp|heic|heif);base64,[a-z0-9+/=]+$/i.test(url)) {
     return url.length <= 2_500_000
   }
 
@@ -193,6 +223,16 @@ function isValidEvidenceUrl(url: string): boolean {
   } catch {
     return false
   }
+}
+
+function normalizedImageMimeType(value: string): string {
+  const normalized = value.toLowerCase()
+
+  if (['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(normalized)) {
+    return normalized
+  }
+
+  return 'image/jpeg'
 }
 
 function returnTargetFromForm(rawInput: Record<string, FormDataEntryValue>): {

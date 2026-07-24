@@ -23,6 +23,7 @@ export function AuditCheckForm({
   const [photoDataUrl, setPhotoDataUrl] = useState('')
   const [photoName, setPhotoName] = useState('')
   const [photoError, setPhotoError] = useState('')
+  const [photoSelected, setPhotoSelected] = useState(false)
   const [gpsState, setGpsState] = useState<{
     status: 'idle' | 'capturing' | 'captured' | 'error'
     latitude: string
@@ -37,7 +38,7 @@ export function AuditCheckForm({
     message: 'Capture current coordinates at the plantation before submitting.',
   })
   const auditedAt = useMemo(() => localDateTimeValue(new Date()), [])
-  const readyForSubmit = Boolean(photoDataUrl && gpsState.latitude && gpsState.longitude)
+  const readyForSubmit = Boolean((photoDataUrl || photoSelected) && gpsState.latitude && gpsState.longitude)
 
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0]
@@ -46,13 +47,17 @@ export function AuditCheckForm({
     if (!file) {
       setPhotoDataUrl('')
       setPhotoName('')
+      setPhotoSelected(false)
       return
     }
+
+    setPhotoSelected(true)
 
     if (!file.type.startsWith('image/')) {
       setPhotoError('Use the phone camera to capture an image.')
       setPhotoDataUrl('')
       setPhotoName('')
+      setPhotoSelected(false)
       return
     }
 
@@ -61,9 +66,9 @@ export function AuditCheckForm({
       setPhotoDataUrl(compressed)
       setPhotoName(file.name || 'Captured field photo')
     } catch {
-      setPhotoError('The photo could not be prepared. Capture it again.')
+      setPhotoError('Preview is unavailable, but the captured photo can still be submitted.')
       setPhotoDataUrl('')
-      setPhotoName('')
+      setPhotoName(file.name || 'Captured field photo')
     }
   }
 
@@ -174,6 +179,7 @@ export function AuditCheckForm({
             <Camera size={17} aria-hidden="true" />
             <span>{photoDataUrl ? 'Retake photo' : 'Take live photo'}</span>
             <input
+              name="auditPhotoFile"
               type="file"
               accept="image/*"
               capture="environment"
@@ -252,7 +258,7 @@ export function AuditCheckForm({
       </label>
 
       <button className="command-button justify-self-start" type="submit" disabled={!readyForSubmit}>
-        Record QR check
+        {readyForSubmit ? 'Record QR check' : 'Complete photo and GPS first'}
       </button>
     </form>
   )
