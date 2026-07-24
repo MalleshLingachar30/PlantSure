@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { redirect } from 'next/navigation'
 import { registerPilotSite } from './actions'
 import { GeographySelects } from '@/components/geography-selects'
 import { InternalShell } from '@/components/internal-shell'
 import { RegistrationDetails } from '@/components/registration-details'
-import { requireAdminMember, requireSignedIn } from '@/lib/auth-member'
+import { requirePlantationMember, requireSignedIn } from '@/lib/auth-member'
 import { getAdminOverview } from '@/lib/admin-data'
 import { hasDatabaseUrl, withDatabase } from '@/lib/db'
 import { KARNATAKA_GEOGRAPHIES } from '@/lib/karnataka-geography'
@@ -18,11 +19,17 @@ export default async function AdminPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const member = hasDatabaseUrl()
-    ? await withDatabase(requireAdminMember)
+    ? await withDatabase((client) => requirePlantationMember(client))
     : null
 
   if (!member) {
     await requireSignedIn()
+  } else if (member.role === 'manager') {
+    redirect('/advisor')
+  } else if (member.role === 'auditor') {
+    redirect('/auditor')
+  } else if (member.role !== 'admin') {
+    redirect('/')
   }
 
   const [{ error }, overview, directory] = await Promise.all([
