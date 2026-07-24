@@ -20,6 +20,10 @@ npm run dev
 npm run check
 ```
 
+Field QR audit photos are uploaded to UploadThing before the audit record is
+submitted. Set `UPLOADTHING_TOKEN` in `.env.local` and in Vercel production
+environment variables.
+
 `npm run check` includes `npm run test:postgres`. Set `TEST_DATABASE_URL` to a
 real Postgres database before running it; the migration invariant tests create
 and drop an isolated temporary schema. Do not replace this with PGlite or a mock:

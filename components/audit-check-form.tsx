@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Camera, Crosshair, RefreshCcw } from 'lucide-react'
 import type { AdminBatchSpecies } from '@/lib/admin-data'
+import { useUploadThing } from '@/lib/uploadthing'
 
 type AuditCheckWindow = {
   id: string
@@ -28,9 +29,12 @@ export function AuditCheckForm({
   returnTo,
   locationId,
 }: AuditCheckFormProps) {
-  const [photoDataUrl, setPhotoDataUrl] = useState('')
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('')
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState('')
   const [photoName, setPhotoName] = useState('')
   const [photoError, setPhotoError] = useState('')
+  const [photoStatus, setPhotoStatus] = useState<'idle' | 'compressing' | 'uploading' | 'uploaded'>('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [gpsState, setGpsState] = useState<{
@@ -47,40 +51,84 @@ export function AuditCheckForm({
     message: 'Capture current coordinates at the plantation before submitting.',
   })
   const auditedAt = useMemo(() => localDateTimeValue(new Date()), [])
-  const readyForSubmit = Boolean(photoDataUrl && gpsState.latitude && gpsState.longitude)
+  const { startUpload, isUploading } = useUploadThing('auditEvidence', {
+    uploadProgressGranularity: 'fine',
+    onUploadProgress: setUploadProgress,
+  })
+  const readyForSubmit = Boolean(uploadedPhotoUrl && gpsState.latitude && gpsState.longitude)
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl)
+      }
+    }
+  }, [photoPreviewUrl])
 
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0]
     setPhotoError('')
+    setUploadedPhotoUrl('')
+    setUploadProgress(0)
 
     if (!file) {
-      setPhotoDataUrl('')
+      setPhotoPreviewUrl('')
       setPhotoName('')
+      setPhotoStatus('idle')
       return
     }
 
     if (!file.type.startsWith('image/')) {
       setPhotoError('Use the phone camera to capture an image.')
-      setPhotoDataUrl('')
+      setPhotoPreviewUrl('')
       setPhotoName('')
+      setPhotoStatus('idle')
       return
     }
 
+    let uploading = false
+
     try {
+      setPhotoStatus('compressing')
       const compressed = await compressImage(file)
-      if (compressed.length > MAX_CAPTURED_IMAGE_LENGTH) {
+      if (compressed.size > MAX_CAPTURED_IMAGE_SIZE) {
         setPhotoError('The captured photo is too large. Retake it closer to the site evidence.')
-        setPhotoDataUrl('')
+        setPhotoPreviewUrl('')
         setPhotoName(file.name || 'Captured field photo')
+        setPhotoStatus('idle')
         return
       }
 
-      setPhotoDataUrl(compressed)
+      setPhotoPreviewUrl(URL.createObjectURL(compressed))
+      setPhotoName(compressed.name || 'Captured field photo')
+      setPhotoStatus('uploading')
+      uploading = true
+
+      const result = await startUpload([compressed], {
+        siteId,
+        windowId: window.id,
+        locationId: locationId ?? siteId,
+      })
+      const uploaded = result?.[0] as { url?: string; ufsUrl?: string } | undefined
+      const uploadedUrl = uploaded?.ufsUrl ?? uploaded?.url ?? ''
+
+      if (!uploadedUrl) {
+        throw new Error('Upload did not return a file URL')
+      }
+
+      setUploadedPhotoUrl(uploadedUrl)
+      setPhotoStatus('uploaded')
+    } catch (error) {
+      setPhotoError(
+        uploading
+          ? 'The photo upload failed. Check the network and UploadThing configuration, then retake the photo.'
+          : 'The photo could not be prepared. Retake it and wait for the preview.',
+      )
+      setUploadedPhotoUrl('')
+      setPhotoPreviewUrl('')
       setPhotoName(file.name || 'Captured field photo')
-    } catch {
-      setPhotoError('The photo could not be prepared. Retake it and wait for the preview.')
-      setPhotoDataUrl('')
-      setPhotoName(file.name || 'Captured field photo')
+      setPhotoStatus('idle')
+      console.error('Failed to upload audit photo', error)
     }
   }
 
@@ -141,9 +189,15 @@ export function AuditCheckForm({
       return
     }
 
-    if (!photoDataUrl) {
+    if (isUploading || photoStatus === 'uploading' || photoStatus === 'compressing') {
       event.preventDefault()
-      setSubmitError('Capture a live photo and wait for the preview before submitting.')
+      setSubmitError('Wait for the photo upload to finish before submitting.')
+      return
+    }
+
+    if (!uploadedPhotoUrl) {
+      event.preventDefault()
+      setSubmitError('Capture a live photo and wait for the UploadThing URL before submitting.')
       return
     }
 
@@ -168,7 +222,7 @@ export function AuditCheckForm({
       <input type="hidden" name="windowId" value={window.id} />
       <input type="hidden" name="returnTo" value={returnTo} />
       {locationId && <input type="hidden" name="locationId" value={locationId} />}
-      <input type="hidden" name="auditPhotoUrls" value={photoDataUrl} />
+      <input type="hidden" name="auditPhotoUrls" value={uploadedPhotoUrl} />
       <input type="hidden" name="auditedAt" value={auditedAt} />
       <input type="hidden" name="auditLatitude" value={gpsState.latitude} />
       <input type="hidden" name="auditLongitude" value={gpsState.longitude} />
@@ -222,7 +276,7 @@ export function AuditCheckForm({
 
           <label className="capture-photo-input mt-4">
             <Camera size={17} aria-hidden="true" />
-            <span>{photoDataUrl ? 'Retake photo' : 'Take live photo'}</span>
+            <span>{photoPreviewUrl ? 'Retake photo' : 'Take live photo'}</span>
             <input
               type="file"
               accept="image/*"
@@ -231,15 +285,21 @@ export function AuditCheckForm({
             />
           </label>
 
-          {photoDataUrl ? (
+          {photoPreviewUrl ? (
             <figure className="capture-preview">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoDataUrl} alt="Captured audit evidence preview" />
-              <figcaption>{photoName || 'Field photo captured'}</figcaption>
+              <img src={photoPreviewUrl} alt="Captured audit evidence preview" />
+              <figcaption>
+                {photoStatus === 'uploaded'
+                  ? `${photoName || 'Field photo'} uploaded`
+                  : photoStatus === 'uploading'
+                    ? `Uploading ${Math.round(uploadProgress)}%`
+                    : photoName || 'Preparing field photo'}
+              </figcaption>
             </figure>
           ) : (
             <p className="capture-status mt-3">
-              A live field photo is required before the audit can be submitted.
+              A live field photo is uploaded before the audit can be submitted.
             </p>
           )}
 
@@ -307,14 +367,24 @@ export function AuditCheckForm({
         </div>
       )}
 
-      <button className="command-button justify-self-start" type="submit" disabled={submitting}>
-        {submitting ? 'Saving audit...' : readyForSubmit ? 'Record QR check' : 'Review required fields'}
+      <button
+        className="command-button justify-self-start"
+        type="submit"
+        disabled={submitting || isUploading || photoStatus === 'compressing' || photoStatus === 'uploading'}
+      >
+        {submitting
+          ? 'Saving audit...'
+          : isUploading || photoStatus === 'uploading'
+            ? 'Uploading photo...'
+            : readyForSubmit
+              ? 'Record QR check'
+              : 'Review required fields'}
       </button>
     </form>
   )
 }
 
-const MAX_CAPTURED_IMAGE_LENGTH = 2_000_000
+const MAX_CAPTURED_IMAGE_SIZE = 4_000_000
 
 function localDateTimeValue(value: Date): string {
   const year = value.getFullYear()
@@ -326,7 +396,7 @@ function localDateTimeValue(value: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-async function compressImage(file: File): Promise<string> {
+async function compressImage(file: File): Promise<File> {
   const image = await loadImage(file)
   const maxSide = 960
   const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
@@ -343,7 +413,13 @@ async function compressImage(file: File): Promise<string> {
 
   context.drawImage(image, 0, 0, width, height)
 
-  return canvas.toDataURL('image/jpeg', 0.68)
+  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.68)
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'audit-photo'
+
+  return new File([blob], `${baseName}.jpg`, {
+    type: 'image/jpeg',
+    lastModified: Date.now(),
+  })
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -360,6 +436,26 @@ function loadImage(file: File): Promise<HTMLImageElement> {
       reject(new Error('Image could not be loaded'))
     }
     image.src = url
+  })
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('Image could not be compressed'))
+        }
+      },
+      type,
+      quality,
+    )
   })
 }
 

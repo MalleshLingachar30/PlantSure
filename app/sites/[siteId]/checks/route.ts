@@ -42,10 +42,7 @@ export async function POST(
   }
 
   const input = parsed.data
-  const photoUrls = await parsePhotoEvidence(
-    input.auditPhotoUrls,
-    formData.get('auditPhotoFile'),
-  )
+  const photoUrls = parsePhotoEvidence(input.auditPhotoUrls)
   const speciesResults = parseAuditSpeciesRows(formData)
   const fieldQrCheck = input.returnTo === 'public'
 
@@ -53,7 +50,7 @@ export async function POST(
     !photoUrls ||
     photoUrls.length === 0 ||
     !speciesResults ||
-    (fieldQrCheck && !hasCapturedFieldEvidence(photoUrls)) ||
+    (fieldQrCheck && !hasStoredPhotoEvidence(photoUrls)) ||
     (fieldQrCheck && (!input.auditLatitude || !input.auditLongitude || !input.auditGpsAccuracy)) ||
     (input.auditLatitude && !decimalCoordinateSchema.safeParse(input.auditLatitude).success) ||
     (input.auditLongitude && !decimalCoordinateSchema.safeParse(input.auditLongitude).success) ||
@@ -159,29 +156,8 @@ function parseAuditSpeciesRows(formData: FormData) {
   return rows.length > 0 ? rows : null
 }
 
-async function parsePhotoEvidence(
-  value: string | undefined,
-  fileEntry: FormDataEntryValue | null,
-): Promise<string[] | null> {
-  const urls = parsePhotoUrls(value)
-
-  if (urls && urls.length > 0) {
-    return urls
-  }
-
-  if (!(fileEntry instanceof File) || fileEntry.size === 0) {
-    return urls
-  }
-
-  if (!fileEntry.type.startsWith('image/') || fileEntry.size > 2_500_000) {
-    return null
-  }
-
-  const bytes = Buffer.from(await fileEntry.arrayBuffer())
-  const mimeType = normalizedImageMimeType(fileEntry.type)
-  const dataUrl = `data:${mimeType};base64,${bytes.toString('base64')}`
-
-  return isValidEvidenceUrl(dataUrl) ? [dataUrl] : null
+function parsePhotoEvidence(value: string | undefined): string[] | null {
+  return parsePhotoUrls(value)
 }
 
 function parsePhotoUrls(value: string | undefined): string[] | null {
@@ -207,15 +183,11 @@ function parsePhotoUrls(value: string | undefined): string[] | null {
   return urls
 }
 
-function hasCapturedFieldEvidence(urls: string[]): boolean {
-  return urls.some((url) => url.startsWith('data:image/'))
+function hasStoredPhotoEvidence(urls: string[]): boolean {
+  return urls.some((url) => /^https?:\/\//i.test(url))
 }
 
 function isValidEvidenceUrl(url: string): boolean {
-  if (/^data:image\/(?:jpeg|jpg|png|webp|heic|heif);base64,[a-z0-9+/=]+$/i.test(url)) {
-    return url.length <= 2_500_000
-  }
-
   try {
     const parsed = new URL(url)
 
@@ -223,16 +195,6 @@ function isValidEvidenceUrl(url: string): boolean {
   } catch {
     return false
   }
-}
-
-function normalizedImageMimeType(value: string): string {
-  const normalized = value.toLowerCase()
-
-  if (['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(normalized)) {
-    return normalized
-  }
-
-  return 'image/jpeg'
 }
 
 function returnTargetFromForm(rawInput: Record<string, FormDataEntryValue>): {

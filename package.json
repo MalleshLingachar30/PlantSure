@@ -17,6 +17,7 @@
     "@clerk/nextjs": "6.31.1",
     "@feedbacknfc/sdm": "git+https://github.com/MalleshLingachar30/feedbacknfc-sdm.git#57efd27159b1065c57cb19cc4b7be0ac72a7a967",
     "@neondatabase/serverless": "0.10.4",
+    "@uploadthing/react": "^7.3.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "dexie": "4.4.4",
@@ -32,6 +33,7 @@
     "recharts": "3.9.2",
     "tailwind-merge": "2.6.0",
     "tailwindcss-animate": "1.0.7",
+    "uploadthing": "^7.7.4",
     "workbox-window": "7.4.1",
     "zod": "3.24.1"
   },
