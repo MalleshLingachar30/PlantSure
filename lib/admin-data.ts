@@ -87,6 +87,7 @@ export type AdminAuditAssignment = {
   assignedAt: string
   acceptedAt: string | null
   submittedAt: string | null
+  cancelledAt: string | null
 }
 
 export type AdminAuditSpeciesResult = {
@@ -540,6 +541,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       assigned_at: Date | string
       accepted_at: Date | string | null
       submitted_at: Date | string | null
+      cancelled_at: Date | string | null
     }>(
       `
         select
@@ -551,12 +553,13 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
           assignments.status,
           assignments.assigned_at,
           assignments.accepted_at,
-          assignments.submitted_at
+          assignments.submitted_at,
+          assignments.cancelled_at
         from plantation_audit_assignments assignments
         left join plantation_site_auditors site_auditors
           on site_auditors.id = assignments.site_auditor_id
         where assignments.site_id = $1
-          and assignments.status in ('assigned', 'accepted', 'submitted')
+          and assignments.status in ('assigned', 'accepted', 'submitted', 'cancelled')
         order by assignments.assigned_at desc
       `,
       [siteId],
@@ -628,6 +631,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         assignedAt: timestampDateString(row.assigned_at),
         acceptedAt: row.accepted_at ? timestampDateString(row.accepted_at) : null,
         submittedAt: row.submitted_at ? timestampDateString(row.submitted_at) : null,
+        cancelledAt: row.cancelled_at ? timestampDateString(row.cancelled_at) : null,
       })),
       acceptance: acceptanceResult.rows[0]
         ? {

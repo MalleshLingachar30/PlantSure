@@ -195,9 +195,13 @@ export default async function SitePage({
         )}
         {assignment && (
           <div className="admin-notice mt-6" role="status">
-            <p className="eyebrow">Audit assigned</p>
+            <p className="eyebrow">
+              {assignment === 'cancelled' ? 'Audit order cancelled' : 'Audit assigned'}
+            </p>
             <p className="mt-2 font-medium">
-              The selected audit window is now a work order on the auditor dashboard.
+              {assignment === 'cancelled'
+                ? 'The audit window is available for reassignment.'
+                : 'The selected audit window is now a work order on the auditor dashboard.'}
             </p>
           </div>
         )}
@@ -936,9 +940,7 @@ function AuditAssignmentsPanel({
   const availableWindows = site.windows.filter(
     (window) => window.status === 'scheduled' && !activeAssignmentWindowIds.has(window.id),
   )
-  const assignmentByWindow = new Map(
-    site.auditAssignments.map((assignment) => [assignment.windowId, assignment]),
-  )
+  const assignmentByWindow = assignmentsByWindow(site.auditAssignments)
 
   return (
     <section className="admin-panel mt-7" aria-labelledby="audit-assignments-heading">
@@ -950,7 +952,7 @@ function AuditAssignmentsPanel({
           </h2>
         </div>
         <span className="public-status-pill">
-          {site.auditAssignments.filter((assignment) => assignment.status !== 'submitted').length} open
+          {site.auditAssignments.filter((assignment) => ['assigned', 'accepted'].includes(assignment.status)).length} open
         </span>
       </div>
 
@@ -1000,6 +1002,16 @@ function AuditAssignmentsPanel({
                           </Link>
                         ) : assignment?.status === 'submitted' ? (
                           'Submitted'
+                        ) : canManage && assignment && ['assigned', 'accepted'].includes(assignment.status) ? (
+                          <form action={`/sites/${site.id}/audit-assignments`} method="post">
+                            <input type="hidden" name="action" value="cancel" />
+                            <input type="hidden" name="assignmentId" value={assignment.id} />
+                            <button className="secondary-button inline-flex" type="submit">
+                              Cancel order
+                            </button>
+                          </form>
+                        ) : assignment?.status === 'cancelled' ? (
+                          assignment.cancelledAt ? `Cancelled ${assignment.cancelledAt}` : 'Cancelled'
                         ) : (
                           'No audit yet'
                         )}
@@ -1014,6 +1026,7 @@ function AuditAssignmentsPanel({
 
         {canManage ? (
           <form action={`/sites/${site.id}/audit-assignments`} method="post" className="grid gap-4">
+            <input type="hidden" name="action" value="assign" />
             <div className="form-section-line">
               <div>
                 <p className="eyebrow">Assign order</p>
@@ -1361,6 +1374,38 @@ function assignmentStatusText(status: string): string {
   }
 
   return status
+}
+
+function assignmentsByWindow(
+  assignments: AdminSiteDetail['auditAssignments'],
+): Map<string, AdminSiteDetail['auditAssignments'][number]> {
+  const byWindow = new Map<string, AdminSiteDetail['auditAssignments'][number]>()
+
+  for (const assignment of assignments) {
+    const existing = byWindow.get(assignment.windowId)
+
+    if (!existing || assignmentPriority(assignment.status) > assignmentPriority(existing.status)) {
+      byWindow.set(assignment.windowId, assignment)
+    }
+  }
+
+  return byWindow
+}
+
+function assignmentPriority(status: string): number {
+  if (status === 'assigned' || status === 'accepted') {
+    return 3
+  }
+
+  if (status === 'submitted') {
+    return 2
+  }
+
+  if (status === 'cancelled') {
+    return 1
+  }
+
+  return 0
 }
 
 function addYears(dateString: string, years: number): string {

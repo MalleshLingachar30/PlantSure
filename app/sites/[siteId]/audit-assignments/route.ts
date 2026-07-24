@@ -1,15 +1,22 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { assignAuditWindow } from '@/lib/audit-assignments'
+import { assignAuditWindow, cancelAuditAssignment } from '@/lib/audit-assignments'
 import { requireSiteAuditManager } from '@/lib/auth-member'
 import { ensureAuditorInvitation } from '@/lib/auditor-invitation'
 import { withDatabase } from '@/lib/db'
 
-const assignmentSchema = z.object({
-  windowId: z.string().uuid(),
-  siteAuditorId: z.string().uuid(),
-})
+const assignmentSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('assign'),
+    windowId: z.string().uuid(),
+    siteAuditorId: z.string().uuid(),
+  }),
+  z.object({
+    action: z.literal('cancel'),
+    assignmentId: z.string().uuid(),
+  }),
+])
 
 export async function POST(
   request: Request,
@@ -24,28 +31,43 @@ export async function POST(
   }
 
   try {
-    const assignment = await withDatabase(async (client) => {
+    const result = await withDatabase(async (client) => {
       const member = await requireSiteAuditManager(client, siteId)
 
-      return assignAuditWindow(client, {
+      if (parsed.data.action === 'cancel') {
+        await cancelAuditAssignment(client, {
+          siteId,
+          assignmentId: parsed.data.assignmentId,
+        })
+
+        return { action: 'cancelled' as const }
+      }
+
+      const assignment = await assignAuditWindow(client, {
         siteId,
         windowId: parsed.data.windowId,
         siteAuditorId: parsed.data.siteAuditorId,
         assignedByMemberId: member.id,
       })
+
+      return { action: 'assigned' as const, assignment }
     })
 
-    try {
-      await ensureAuditorInvitation({
-        siteId,
-        locationId: assignment.locationId,
-        email: assignment.auditorEmail,
-      })
-    } catch (error) {
-      console.error('Failed to create auditor invitation for assignment', error)
+    if (result.action === 'assigned') {
+      const assignment = result.assignment
+
+      try {
+        await ensureAuditorInvitation({
+          siteId,
+          locationId: assignment.locationId,
+          email: assignment.auditorEmail,
+        })
+      } catch (error) {
+        console.error('Failed to create auditor invitation for assignment', error)
+      }
     }
   } catch (error) {
-    console.error('Failed to assign audit window', error)
+    console.error('Failed to update audit assignment', error)
     return redirectToSite(request, siteId, 'assignment')
   }
 
@@ -54,7 +76,10 @@ export async function POST(
   revalidatePath(`/sites/${siteId}`)
 
   return NextResponse.redirect(
-    new URL(`/sites/${siteId}?console=1&assignment=1`, request.url),
+    new URL(
+      `/sites/${siteId}?console=1&assignment=${parsed.data.action === 'cancel' ? 'cancelled' : '1'}`,
+      request.url,
+    ),
     303,
   )
 }

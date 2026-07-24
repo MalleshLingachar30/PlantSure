@@ -96,6 +96,38 @@ export async function assignAuditWindow(
   }
 }
 
+export async function cancelAuditAssignment(
+  db: Queryable,
+  input: {
+    siteId: string
+    assignmentId: string
+  },
+): Promise<void> {
+  const result = await db.query<{ id: string }>(
+    `
+      update plantation_audit_assignments assignments
+      set
+        status = 'cancelled',
+        cancelled_at = now(),
+        updated_at = now()
+      from plantation_audit_windows windows
+      where assignments.id = $2
+        and assignments.site_id = $1
+        and assignments.status in ('assigned', 'accepted')
+        and windows.id = assignments.window_id
+        and windows.site_id = assignments.site_id
+        and windows.status = 'scheduled'
+        and windows.audit_id is null
+      returning assignments.id
+    `,
+    [input.siteId, input.assignmentId],
+  )
+
+  if (!result.rows[0]) {
+    throw new Error('Audit assignment could not be cancelled')
+  }
+}
+
 export async function listAuditorAssignments(
   db: Queryable,
   email: string,
