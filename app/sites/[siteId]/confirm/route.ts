@@ -23,7 +23,7 @@ export async function POST(
 
   try {
     await withDatabase(async (client) => {
-      const member = await requirePlantationMember(client, ['admin', 'manager'])
+      const member = await requirePlantationMember(client, ['admin'])
 
       return confirmPlantationCounts(client, {
         siteId,
@@ -31,16 +31,17 @@ export async function POST(
         actor: member.id,
       })
     })
-  } catch {
+  } catch (error) {
+    console.error('Failed to confirm planting counts', error)
     return redirectToSite(request, siteId, 'confirm')
   }
 
   revalidatePath('/admin')
   revalidatePath(`/sites/${siteId}`)
 
-  return NextResponse.redirect(new URL(`/sites/${siteId}?confirmed=1`, request.url), 303)
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&confirmed=1`, request.url), 303)
 }
 
 function redirectToSite(request: Request, siteId: string, error: string) {
-  return NextResponse.redirect(new URL(`/sites/${siteId}?error=${error}`, request.url), 303)
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&error=${error}`, request.url), 303)
 }

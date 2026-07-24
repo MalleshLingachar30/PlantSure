@@ -7,6 +7,7 @@ import {
   requireProgramOwnerApproverForSite,
 } from '@/lib/auth-member'
 import { withDatabase } from '@/lib/db'
+import { ensureOwnerApprovalInvitation } from '@/lib/owner-approval-invitation'
 import {
   acceptSiteAsSponsor,
   markAcceptanceRequestNotificationFailed,
@@ -16,6 +17,7 @@ import {
 
 const acceptanceSchema = z.object({
   action: z.enum(['submit', 'accept']),
+  returnTo: z.enum(['detail', 'review']).optional(),
 })
 
 export async function POST(
@@ -43,6 +45,12 @@ export async function POST(
       let notified: 'sent' | 'failed' = 'sent'
 
       try {
+        await ensureOwnerApprovalInvitation(notification)
+      } catch (error) {
+        console.error('Failed to create owner approval invitation', error)
+      }
+
+      try {
         const delivery = await sendAcceptanceRequestEmail(notification)
         await withDatabase((client) =>
           markAcceptanceRequestNotificationSent(client, {
@@ -67,7 +75,7 @@ export async function POST(
       revalidatePath(`/sites/${siteId}`)
 
       return NextResponse.redirect(
-        new URL(`/sites/${siteId}?submitted=1&notified=${notified}`, request.url),
+        new URL(`/sites/${siteId}?console=1&submitted=1&notified=${notified}`, request.url),
         303,
       )
     } catch {
@@ -90,10 +98,16 @@ export async function POST(
 
   revalidatePath('/admin')
   revalidatePath(`/sites/${siteId}`)
+  revalidatePath(`/sites/${siteId}/review`)
 
-  return NextResponse.redirect(new URL(`/sites/${siteId}?approved=1`, request.url), 303)
+  const approvedPath =
+    parsed.data.returnTo === 'review'
+      ? `/sites/${siteId}/review?approved=1`
+      : `/sites/${siteId}?console=1&approved=1`
+
+  return NextResponse.redirect(new URL(approvedPath, request.url), 303)
 }
 
 function redirectToSite(request: Request, siteId: string, error: string) {
-  return NextResponse.redirect(new URL(`/sites/${siteId}?error=${error}`, request.url), 303)
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&error=${error}`, request.url), 303)
 }

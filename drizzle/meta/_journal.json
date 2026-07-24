@@ -85,6 +85,13 @@
       "when": 1784805600000,
       "tag": "0011_scientific_advisory_master",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784898000000,
+      "tag": "0012_site_auditor_assignments",
+      "breakpoints": true
     }
   ]
 }

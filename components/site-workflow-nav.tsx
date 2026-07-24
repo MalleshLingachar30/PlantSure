@@ -45,7 +45,7 @@ const workflowLinks: Array<{
   {
     key: 'detail',
     label: 'Site detail',
-    href: (siteId) => `/sites/${siteId}`,
+    href: (siteId) => `/sites/${siteId}?console=1`,
     icon: MapPinned,
   },
   {

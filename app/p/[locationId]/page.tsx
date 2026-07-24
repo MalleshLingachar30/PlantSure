@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { ClipboardCheck } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import type { PublicAuditVisit, PublicPlantingEvidence } from '@/lib/admin-data'
 import { getPublicSiteByLocationId } from '@/lib/admin-data'
@@ -7,10 +9,12 @@ export const dynamic = 'force-dynamic'
 
 export default async function PublicSitePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locationId: string }>
+  searchParams: Promise<{ checked?: string }>
 }) {
-  const { locationId } = await params
+  const [{ locationId }, { checked }] = await Promise.all([params, searchParams])
   const site = await getPublicSiteByLocationId(decodeURIComponent(locationId))
 
   if (!site) {
@@ -21,6 +25,8 @@ export default async function PublicSitePage({
     ...site.plantingPhotoUrls,
     ...site.stageEvidence.map((evidence) => evidence.url),
   ]
+  const today = new Date().toISOString().slice(0, 10)
+  const openWindow = site.auditVisits.find((visit) => isWindowOpenForCheck(visit, today)) ?? null
 
   return (
     <main className="min-h-screen px-5 py-6 sm:px-6 lg:py-10">
@@ -37,6 +43,13 @@ export default async function PublicSitePage({
             </p>
             <p className="site-id mt-4">{site.locationId}</p>
           </header>
+
+          {checked && (
+            <div className="admin-notice mt-6" role="status">
+              <p className="eyebrow">Check recorded</p>
+              <p className="mt-2 font-medium">The QR audit visit was saved for this site.</p>
+            </div>
+          )}
 
           <dl className="public-facts">
             <div>
@@ -78,6 +91,8 @@ export default async function PublicSitePage({
               </dd>
             </div>
           </dl>
+
+          <PublicAuditAction locationId={site.locationId} openWindow={openWindow} />
 
           <section className="border-t pt-6" style={{ borderColor: 'var(--rule)' }}>
             <p className="eyebrow">Last checked</p>
@@ -202,6 +217,39 @@ function StageEvidenceSummary({ evidence }: { evidence: PublicPlantingEvidence[]
         </li>
       ))}
     </ol>
+  )
+}
+
+function PublicAuditAction({
+  locationId,
+  openWindow,
+}: {
+  locationId: string
+  openWindow: PublicAuditVisit | null
+}) {
+  if (!openWindow) {
+    return null
+  }
+
+  return (
+    <section className="border-t pt-6" style={{ borderColor: 'var(--rule)' }}>
+      <div className="public-section-header">
+        <div>
+          <p className="eyebrow">Open QR check</p>
+          <h2 className="section-title mt-1">
+            {openWindow.cycleLabel}: due {displayDate(openWindow.dueDate)}
+          </h2>
+        </div>
+      </div>
+      <p className="body-copy mt-3 text-[14px]">
+        Inspectors continue with the registered auditor email attached to this
+        planting site.
+      </p>
+      <Link className="command-button mt-4 inline-flex" href={`/p/${locationId}/check`}>
+        <ClipboardCheck size={16} aria-hidden="true" />
+        <span>Record today&apos;s QR audit</span>
+      </Link>
+    </section>
   )
 }
 
@@ -348,4 +396,12 @@ function statusText(status: string): string {
 
 function gpsStatusText(status: string): string {
   return status.replaceAll('_', ' ')
+}
+
+function isWindowOpenForCheck(window: PublicAuditVisit, today: string): boolean {
+  return (
+    window.status === 'scheduled' &&
+    window.dueDate <= today &&
+    window.graceUntil >= today
+  )
 }

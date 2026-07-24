@@ -30,7 +30,7 @@ function resendReplyToEmail(): string | null {
 export async function sendAcceptanceRequestEmail(
   payload: AcceptanceRequestNotificationPayload,
 ): Promise<{ provider: 'resend'; providerMessageId: string }> {
-  const reviewLink = siteUrl(`/sites/${payload.siteId}`)
+  const reviewLink = siteUrl(`/sites/${payload.siteId}/review`)
   const from = `${resendFromName()} <${resendFromEmail()}>`
   const body = {
     from,
@@ -88,7 +88,7 @@ function acceptanceRequestText(
     'Species summary:',
     species,
     '',
-    'Please review the planted baseline and confirm it from your owner account:',
+    'Please review the planted baseline and confirm it from your owner account. If this is your first PlantSure approval, use the same link to create the owner account:',
     reviewLink,
   ].join('\n')
 }
@@ -109,7 +109,7 @@ function acceptanceRequestHtml(
       <p style="margin:0 0 12px; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#8b847a">PlantSure approval request</p>
       <h1 style="margin:0 0 12px; font-size:28px; font-weight:600">${escapeHtml(payload.locationId)}</h1>
       <p style="margin:0 0 18px; font-size:16px">
-        ${escapeHtml(payload.siteName)} was submitted for owner approval. Please confirm the planted saplings from your separate owner account.
+        ${escapeHtml(payload.siteName)} was submitted for owner approval. Please confirm the planted saplings from your owner account. If this is your first PlantSure approval, use the review link to create the owner account.
       </p>
       <table style="border-collapse:collapse; margin:0 0 20px; width:100%">
         <tbody>

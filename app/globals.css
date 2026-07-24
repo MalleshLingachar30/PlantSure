@@ -194,6 +194,10 @@
     display: none;
   }
 
+  .internal-sidebar-body {
+    min-width: 0;
+  }
+
   .internal-main {
     min-width: 0;
   }
@@ -420,11 +424,30 @@
       top: 0;
       display: flex;
       height: 100vh;
+      max-height: 100dvh;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 1rem;
       border-right: 1px solid var(--rule);
       background: var(--paper-deep);
       padding: 1.5rem 1.25rem;
+      overflow: hidden;
+    }
+
+    .internal-sidebar-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 0.2rem;
+      scrollbar-gutter: stable;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .internal-sidebar-footer {
+      flex: 0 0 auto;
+      background: var(--paper-deep);
     }
 
     .internal-topbar {

@@ -25,6 +25,12 @@ type MemberRow = {
 
 type PlantationMemberRole = AuthenticatedMember['role']
 
+export type SiteAuditorAccess = {
+  member: AuthenticatedMember
+  allowed: boolean
+  reason: 'admin' | 'assigned_auditor' | 'not_auditor_role' | 'not_assigned'
+}
+
 export async function requireSignedIn(): Promise<{ userId: string }> {
   const { userId } = await auth.protect()
 
@@ -95,6 +101,54 @@ export async function requirePlantationMember(
 
 export async function requireAdminMember(db: Queryable): Promise<AuthenticatedMember> {
   return requirePlantationMember(db, ['admin'])
+}
+
+export async function getSiteAuditorAccess(
+  db: Queryable,
+  siteId: string,
+): Promise<SiteAuditorAccess> {
+  const member = await requirePlantationMember(db)
+
+  if (member.role === 'admin') {
+    return { member, allowed: true, reason: 'admin' }
+  }
+
+  if (member.role !== 'auditor' || !member.email) {
+    return { member, allowed: false, reason: 'not_auditor_role' }
+  }
+
+  const result = await db.query<{ matched: boolean }>(
+    `
+      select exists(
+        select 1
+        from plantation_site_auditors
+        where site_id = $1
+          and active = true
+          and lower(btrim(email)) = $2
+      ) as matched
+    `,
+    [siteId, member.email.trim().toLowerCase()],
+  )
+  const matched = result.rows[0]?.matched === true
+
+  return {
+    member,
+    allowed: matched,
+    reason: matched ? 'assigned_auditor' : 'not_assigned',
+  }
+}
+
+export async function requireSiteAuditorForSite(
+  db: Queryable,
+  siteId: string,
+): Promise<AuthenticatedMember> {
+  const access = await getSiteAuditorAccess(db, siteId)
+
+  if (!access.allowed) {
+    throw new Error('Registered site auditor access is required')
+  }
+
+  return access.member
 }
 
 export async function requireProgramOwnerApproverForSite(

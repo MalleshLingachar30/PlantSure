@@ -410,6 +410,62 @@ test('stage evidence capture advances pits and planted stages with photos', asyn
   })
 })
 
+test('stage evidence capture appends photos for an already reached stage', async () => {
+  await withMigratedDatabase(async ({ client }) => {
+    const programId = await createProgram(client)
+    const siteId = await createSite(client, programId)
+
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'pits_dug',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-1.jpg'],
+      capturedAt: '2026-07-10T09:30:00',
+      uploadedByMemberId: memberId,
+    })
+    await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'planted',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+      capturedAt: '2026-07-15T11:00:00',
+      uploadedByMemberId: memberId,
+    })
+
+    const stage = await recordStageEvidenceAndAdvance(client, {
+      siteId,
+      stage: 'pits_dug',
+      photoUrls: ['https://plantsure.feedbacknfc.com/evidence/pits-2.jpg'],
+      capturedAt: '2026-07-11T09:30:00',
+      uploadedByMemberId: memberId,
+    })
+
+    const evidence = await client.query<{ stage: string; urls: string[] }>(
+      `
+        select stage::text, array_agg(url order by url) as urls
+        from plantation_evidence
+        where site_id = $1
+        group by stage
+        order by stage
+      `,
+      [siteId],
+    )
+
+    assert.equal(stage, 'planted')
+    assert.deepEqual(evidence.rows, [
+      {
+        stage: 'pits_dug',
+        urls: [
+          'https://plantsure.feedbacknfc.com/evidence/pits-1.jpg',
+          'https://plantsure.feedbacknfc.com/evidence/pits-2.jpg',
+        ],
+      },
+      {
+        stage: 'planted',
+        urls: ['https://plantsure.feedbacknfc.com/evidence/planting-1.jpg'],
+      },
+    ])
+  })
+})
+
 test('acceptance submission and owner approval advance the site into accepted stage', async () => {
   await withMigratedDatabase(async ({ client }) => {
     const programId = await createProgram(client)

@@ -63,7 +63,16 @@ export type AdminSiteDetail = AdminSiteSummary & {
   windows: AdminAuditWindow[]
   stageEvidence: AdminStageEvidence[]
   species: AdminBatchSpecies[]
+  auditors: AdminSiteAuditor[]
   acceptance: AdminSiteAcceptance | null
+}
+
+export type AdminSiteAuditor = {
+  id: string
+  email: string
+  displayName: string | null
+  active: boolean
+  createdAt: string
 }
 
 export type AdminSiteAcceptance = {
@@ -110,6 +119,7 @@ export type PublicSiteDetail = AdminSiteSummary & {
   scientificAdvisorContactEmail: string | null
   plantingPhotoUrls: string[]
   stageEvidence: PublicPlantingEvidence[]
+  species: AdminBatchSpecies[]
   latestAudit: {
     auditedAt: string
     survivingCount: number
@@ -128,6 +138,7 @@ export type PublicPlantingEvidence = {
 }
 
 export type PublicAuditVisit = {
+  id: string
   sequenceNumber: number
   cycleLabel: string
   dueDate: string
@@ -333,6 +344,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     windows,
     stageEvidence,
     species,
+    auditors,
     acceptance,
   } = await withDatabase(async (client) => {
     const detailResult = await client.query<{
@@ -434,6 +446,21 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       `,
       [siteId],
     )
+    const auditorsResult = await client.query<{
+      id: string
+      email: string
+      display_name: string | null
+      active: boolean
+      created_at: Date | string
+    }>(
+      `
+        select id, email, display_name, active, created_at
+        from plantation_site_auditors
+        where site_id = $1
+        order by active desc, lower(btrim(email)) asc
+      `,
+      [siteId],
+    )
     const acceptanceResult = await client.query<{
       submitted_at: Date | string
       submitted_by_name: string | null
@@ -483,6 +510,13 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         spacingNotes: row.spacing_notes,
         placement: row.placement,
       })),
+      auditors: auditorsResult.rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        displayName: row.display_name,
+        active: row.active,
+        createdAt: timestampDateString(row.created_at),
+      })),
       acceptance: acceptanceResult.rows[0]
         ? {
             submittedAt: timestampDateString(acceptanceResult.rows[0].submitted_at),
@@ -530,6 +564,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     windows,
     stageEvidence,
     species,
+    auditors,
     acceptance,
   }
 }
@@ -645,6 +680,7 @@ export async function getPublicSiteByLocationId(
     )
     const audit = latestAudit.rows[0]
     const auditVisits = await client.query<{
+      id: string
       sequence_number: number
       cycle_label: string
       due_date: Date | string
@@ -662,6 +698,7 @@ export async function getPublicSiteByLocationId(
     }>(
       `
         select
+          windows.id,
           windows.sequence_number,
           windows.cycle_label,
           windows.due_date,
@@ -680,6 +717,20 @@ export async function getPublicSiteByLocationId(
         left join plantation_audits audits on audits.window_id = windows.id
         where windows.site_id = $1
         order by windows.sequence_number
+      `,
+      [row.id],
+    )
+    const species = await client.query<{
+      species_name: string
+      planted_count: number
+      spacing_notes: string | null
+      placement: string | null
+    }>(
+      `
+        select species_name, planted_count, spacing_notes, placement
+        from plantation_batch_species
+        where site_id = $1
+        order by species_name
       `,
       [row.id],
     )
@@ -735,6 +786,12 @@ export async function getPublicSiteByLocationId(
         capturedAt: timestampDateString(evidence.captured_at),
         caption: evidence.caption,
       })),
+      species: species.rows.map((speciesRow) => ({
+        speciesName: speciesRow.species_name,
+        plantedCount: speciesRow.planted_count,
+        spacingNotes: speciesRow.spacing_notes,
+        placement: speciesRow.placement,
+      })),
       plantedCount: row.planted_count,
       plantingDate: dateString(row.planting_date),
       speciesNotes: row.species_notes,
@@ -753,6 +810,7 @@ export async function getPublicSiteByLocationId(
           }
         : null,
       auditVisits: auditVisits.rows.map((visit) => ({
+        id: visit.id,
         sequenceNumber: visit.sequence_number,
         cycleLabel: visit.cycle_label,
         dueDate: dateString(visit.due_date),

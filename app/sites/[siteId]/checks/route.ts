@@ -1,12 +1,14 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requirePlantationMember } from '@/lib/auth-member'
+import { requireSiteAuditorForSite } from '@/lib/auth-member'
 import { recordAuditCheck } from '@/lib/plantation-checks'
 import { withDatabase } from '@/lib/db'
 
 const auditCheckSchema = z.object({
   windowId: z.string().uuid(),
+  returnTo: z.enum(['console', 'public']).optional(),
+  locationId: z.string().trim().optional(),
   auditedAt: z.string().trim().min(1),
   auditPhotoUrls: z.string().trim().min(1),
   auditLatitude: z.string().trim().optional(),
@@ -17,6 +19,7 @@ const auditCheckSchema = z.object({
 })
 
 const decimalCoordinateSchema = z.string().trim().regex(/^-?\d+(\.\d+)?$/)
+const decimalNonNegativeSchema = z.string().trim().regex(/^\d+(\.\d+)?$/)
 
 export async function POST(
   request: Request,
@@ -24,10 +27,12 @@ export async function POST(
 ) {
   const { siteId } = await params
   const formData = await request.formData()
-  const parsed = auditCheckSchema.safeParse(Object.fromEntries(formData))
+  const rawInput = Object.fromEntries(formData)
+  const parsed = auditCheckSchema.safeParse(rawInput)
+  const returnTarget = returnTargetFromForm(rawInput)
 
   if (!z.string().uuid().safeParse(siteId).success || !parsed.success) {
-    return redirectToSite(request, siteId)
+    return redirectToSite(request, siteId, returnTarget)
   }
 
   const input = parsed.data
@@ -39,14 +44,15 @@ export async function POST(
     photoUrls.length === 0 ||
     !speciesResults ||
     (input.auditLatitude && !decimalCoordinateSchema.safeParse(input.auditLatitude).success) ||
-    (input.auditLongitude && !decimalCoordinateSchema.safeParse(input.auditLongitude).success)
+    (input.auditLongitude && !decimalCoordinateSchema.safeParse(input.auditLongitude).success) ||
+    (input.auditGpsAccuracy && !decimalNonNegativeSchema.safeParse(input.auditGpsAccuracy).success)
   ) {
-    return redirectToSite(request, siteId)
+    return redirectToSite(request, siteId, returnTarget)
   }
 
   try {
     await withDatabase(async (client) => {
-      const member = await requirePlantationMember(client, ['admin', 'auditor'])
+      const member = await requireSiteAuditorForSite(client, siteId)
 
       return recordAuditCheck(client, {
         windowId: input.windowId,
@@ -61,14 +67,29 @@ export async function POST(
         remarks: input.remarks || null,
       })
     })
-  } catch {
-    return redirectToSite(request, siteId)
+  } catch (error) {
+    console.error('Failed to record audit check', error)
+    if (
+      error instanceof Error &&
+      error.message === 'Registered site auditor access is required'
+    ) {
+      return redirectToSite(request, siteId, returnTarget, 'auditor_access')
+    }
+
+    return redirectToSite(request, siteId, returnTarget)
   }
 
   revalidatePath('/admin')
   revalidatePath(`/sites/${siteId}`)
 
-  return NextResponse.redirect(new URL(`/sites/${siteId}?checked=1`, request.url), 303)
+  if (input.returnTo === 'public' && input.locationId) {
+    return NextResponse.redirect(
+      new URL(`/p/${encodeURIComponent(input.locationId)}?checked=1`, request.url),
+      303,
+    )
+  }
+
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&checked=1`, request.url), 303)
 }
 
 function parseAuditSpeciesRows(formData: FormData) {
@@ -126,6 +147,28 @@ function parsePhotoUrls(value: string | undefined): string[] | null {
   return urls
 }
 
-function redirectToSite(request: Request, siteId: string) {
-  return NextResponse.redirect(new URL(`/sites/${siteId}?error=check`, request.url), 303)
+function returnTargetFromForm(rawInput: Record<string, FormDataEntryValue>): {
+  returnTo: string
+  locationId: string
+} {
+  return {
+    returnTo: `${rawInput.returnTo ?? ''}`,
+    locationId: `${rawInput.locationId ?? ''}`.trim(),
+  }
+}
+
+function redirectToSite(
+  request: Request,
+  siteId: string,
+  target: { returnTo: string; locationId: string },
+  error = 'check',
+) {
+  if (target.returnTo === 'public' && target.locationId) {
+    return NextResponse.redirect(
+      new URL(`/p/${encodeURIComponent(target.locationId)}/check?error=${error}`, request.url),
+      303,
+    )
+  }
+
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&error=${error}`, request.url), 303)
 }

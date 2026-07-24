@@ -16,6 +16,7 @@ const stageEvidenceSchema = z.object({
 })
 
 const decimalCoordinateSchema = z.string().trim().regex(/^-?\d+(\.\d+)?$/)
+const gpsAccuracySchema = z.string().trim().regex(/^\d+(\.\d+)?$/)
 
 export async function POST(
   request: Request,
@@ -31,14 +32,20 @@ export async function POST(
 
   const input = parsed.data
   const photoUrls = parsePhotoUrls(input.evidencePhotoUrls)
+  const latitude = normalizeOptionalNumber(input.evidenceLatitude, decimalCoordinateSchema)
+  const longitude = normalizeOptionalNumber(input.evidenceLongitude, decimalCoordinateSchema)
+  const gpsAccuracy = normalizeOptionalNumber(input.gpsAccuracy, gpsAccuracySchema)
 
-  if (
-    !photoUrls ||
-    photoUrls.length === 0 ||
-    (input.evidenceLatitude && !decimalCoordinateSchema.safeParse(input.evidenceLatitude).success) ||
-    (input.evidenceLongitude && !decimalCoordinateSchema.safeParse(input.evidenceLongitude).success)
-  ) {
-    return redirectToSite(request, siteId)
+  if (!photoUrls || photoUrls.length === 0) {
+    return redirectToSite(request, siteId, 'stage_photos')
+  }
+
+  if (!latitude.ok || !longitude.ok) {
+    return redirectToSite(request, siteId, 'stage_coordinates')
+  }
+
+  if (!gpsAccuracy.ok) {
+    return redirectToSite(request, siteId, 'stage_gps')
   }
 
   try {
@@ -50,20 +57,20 @@ export async function POST(
         stage: input.stage,
         photoUrls,
         capturedAt: input.capturedAt,
-        latitude: input.evidenceLatitude || null,
-        longitude: input.evidenceLongitude || null,
-        gpsAccuracy: input.gpsAccuracy || null,
+        latitude: latitude.value,
+        longitude: longitude.value,
+        gpsAccuracy: gpsAccuracy.value,
         caption: input.caption || null,
         uploadedByMemberId: member.id,
       })
     })
   } catch {
-    return redirectToSite(request, siteId)
+    return redirectToSite(request, siteId, 'stage')
   }
 
   revalidatePath(`/sites/${siteId}`)
 
-  return NextResponse.redirect(new URL(`/sites/${siteId}?stage=${input.stage}`, request.url), 303)
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&stage=${input.stage}`, request.url), 303)
 }
 
 function parsePhotoUrls(value: string | undefined): string[] | null {
@@ -95,6 +102,23 @@ function parsePhotoUrls(value: string | undefined): string[] | null {
   return urls
 }
 
-function redirectToSite(request: Request, siteId: string) {
-  return NextResponse.redirect(new URL(`/sites/${siteId}?error=stage`, request.url), 303)
+function normalizeOptionalNumber(
+  value: string | undefined,
+  schema: z.ZodString,
+): { ok: true; value: string | null } | { ok: false } {
+  const normalized = value?.trim()
+
+  if (!normalized) {
+    return { ok: true, value: null }
+  }
+
+  if (!schema.safeParse(normalized).success) {
+    return { ok: false }
+  }
+
+  return { ok: true, value: normalized }
+}
+
+function redirectToSite(request: Request, siteId: string, error = 'stage') {
+  return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&error=${error}`, request.url), 303)
 }

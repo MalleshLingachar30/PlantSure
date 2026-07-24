@@ -36,8 +36,9 @@ export default async function BoardPage({
   }
 
   const publicPath = `/p/${site.locationId}`
-  const publicUrl = siteUrl(publicPath)
-  const qrDataUrl = await QRCode.toDataURL(publicUrl, {
+  const auditPath = `/p/${site.locationId}/check`
+  const auditUrl = siteUrl(auditPath)
+  const qrDataUrl = await QRCode.toDataURL(auditUrl, {
     margin: 1,
     width: 360,
     color: {
@@ -98,8 +99,8 @@ export default async function BoardPage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrDataUrl} alt={`QR code for ${site.locationId}`} />
             <div>
-              <p className="eyebrow">Scan to view</p>
-              <p className="body-copy mt-2 break-all text-[13px]">{publicUrl}</p>
+              <p className="eyebrow">Scan to audit</p>
+              <p className="body-copy mt-2 break-all text-[13px]">{auditUrl}</p>
             </div>
           </div>
 
@@ -112,16 +113,21 @@ export default async function BoardPage({
           <h2 className="section-title mt-3">Site board</h2>
           <p className="body-copy mt-3">
             Print this page after planting details are confirmed. The Site ID is
-            deliberately large so a damaged QR does not block a visit.
+            deliberately large so a damaged QR does not block a visit. The QR
+            opens the inspector audit template for this plantation.
           </p>
           <div className="mt-6 grid gap-3">
-            <Link className="secondary-button" href={`/sites/${site.id}`}>
+            <Link className="secondary-button" href={`/sites/${site.id}?console=1`}>
               <ArrowLeft size={16} aria-hidden="true" />
               <span>Back to site detail</span>
             </Link>
             <Link className="command-button text-center" href={publicPath}>
               <ExternalLink size={16} aria-hidden="true" />
               <span>Open public page</span>
+            </Link>
+            <Link className="command-button text-center" href={auditPath}>
+              <ExternalLink size={16} aria-hidden="true" />
+              <span>Open QR audit template</span>
             </Link>
             <PrintButton />
           </div>

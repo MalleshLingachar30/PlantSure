@@ -259,7 +259,7 @@ export default async function AdminPage({
             {overview.sites.length > 0 ? (
               <div className="divide-y" style={{ borderColor: 'var(--rule)' }}>
                 {overview.sites.map((site) => (
-                  <Link key={site.id} href={`/sites/${site.id}`} className="site-row">
+                  <Link key={site.id} href={`/sites/${site.id}?console=1`} className="site-row">
                     <span className="site-id">{site.locationId}</span>
                     <span>
                       <span className="block font-medium">{site.name}</span>

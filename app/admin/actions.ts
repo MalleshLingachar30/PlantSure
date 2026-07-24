@@ -151,7 +151,7 @@ export async function registerPilotSite(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/admin')
-  redirect(`/sites/${site.id}`)
+  redirect(`/sites/${site.id}?console=1`)
 }
 
 function requiredValue(value: string | undefined): string {

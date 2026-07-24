@@ -115,6 +115,19 @@ export type LifecycleStage =
 
 export type AuditWindowStatus = 'scheduled' | 'completed' | 'missed' | 'waived'
 
+const lifecycleStageOrder: LifecycleStage[] = [
+  'land_identified',
+  'land_verified',
+  'species_configured',
+  'material_arranged',
+  'pits_dug',
+  'planted',
+  'submitted_for_acceptance',
+  'accepted',
+  'monitoring',
+  'archived',
+]
+
 export type StageEvidenceInput = {
   siteId: string
   stage: Extract<LifecycleStage, 'pits_dug' | 'planted'>
@@ -717,6 +730,28 @@ export async function recordStageEvidenceAndAdvance(
       throw new Error('At least one photo is required')
     }
 
+    const siteResult = await tx.query<{ stage: LifecycleStage }>(
+      `
+        select stage::text as stage
+        from plantation_sites
+        where id = $1
+        for update
+      `,
+      [input.siteId],
+    )
+    const currentStage = siteResult.rows[0]?.stage
+
+    if (!currentStage) {
+      throw new Error('Plantation site not found')
+    }
+
+    const currentPosition = lifecycleStagePosition(currentStage)
+    const evidencePosition = lifecycleStagePosition(input.stage)
+
+    if (evidencePosition > currentPosition + 1) {
+      throw new Error('Stage evidence is not valid for the current lifecycle step')
+    }
+
     for (const url of urls) {
       await tx.query(
         `
@@ -756,6 +791,10 @@ export async function recordStageEvidenceAndAdvance(
       )
     }
 
+    if (evidencePosition <= currentPosition) {
+      return currentStage
+    }
+
     return advanceSiteStage(tx, {
       siteId: input.siteId,
       toStage: input.stage,
@@ -763,6 +802,10 @@ export async function recordStageEvidenceAndAdvance(
       notes: `${urls.length} photo${urls.length === 1 ? '' : 's'} recorded`,
     })
   })
+}
+
+function lifecycleStagePosition(stage: LifecycleStage): number {
+  return lifecycleStageOrder.indexOf(stage)
 }
 
 export async function markAcceptanceRequestNotificationSent(

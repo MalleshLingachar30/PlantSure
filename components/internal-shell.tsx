@@ -49,7 +49,7 @@ export function InternalShell({ active, children, member, siteMenu }: InternalSh
   return (
     <main className="internal-shell">
       <aside className="internal-sidebar print:hidden" aria-label="Internal navigation">
-        <div>
+        <div className="internal-sidebar-body">
           <Link href="/" className="internal-brand" aria-label="PlantSure home">
             <span className="internal-brand-mark">
               <Sprout size={18} aria-hidden="true" />

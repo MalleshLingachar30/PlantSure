@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Camera, ExternalLink, PanelTop } from 'lucide-react'
-import { notFound } from 'next/navigation'
+import { Camera, ExternalLink, Mail, PanelTop, ShieldCheck, UserPlus } from 'lucide-react'
+import { notFound, redirect } from 'next/navigation'
 import { requirePlantationMember } from '@/lib/auth-member'
 import {
   type AdminSiteDetail,
@@ -29,10 +29,13 @@ export default async function SitePage({
     approved?: string
     stage?: string
     checked?: string
+    auditor?: string
+    invited?: string
     error?: string
+    console?: string
   }>
 }) {
-  const [{ siteId }, { confirmed, submitted, notified, approved, stage, checked, error }] = await Promise.all([
+  const [{ siteId }, { confirmed, submitted, notified, approved, stage, checked, auditor, invited, error, console }] = await Promise.all([
     params,
     searchParams,
   ])
@@ -42,6 +45,15 @@ export default async function SitePage({
 
   if (!site) {
     notFound()
+  }
+
+  const ownerReviewPending =
+    site.stage === 'submitted_for_acceptance' &&
+    !site.acceptance?.acceptedAt &&
+    !site.acceptance?.rejectedAt
+
+  if (ownerReviewPending && console !== '1') {
+    redirect(`/sites/${site.id}/review`)
   }
 
   const isOwnerApprover =
@@ -55,6 +67,8 @@ export default async function SitePage({
   }
 
   const locked = site.status === 'counts_confirmed'
+  const canConfirmCounts = member.role === 'admin'
+  const canManageAuditors = member.role === 'admin'
   const monitoringEndPreview = site.monitoringEnd ?? addYears(site.plantingDate, 5)
   const timeline = timelineFromWindows(site.windows)
 
@@ -155,10 +169,38 @@ export default async function SitePage({
             <p className="mt-2 font-medium">The audit window was marked checked.</p>
           </div>
         )}
+        {auditor && (
+          <div className="admin-notice mt-6" role="status">
+            <p className="eyebrow">Auditor registered</p>
+            <p className="mt-2 font-medium">
+              The auditor email is attached to this planting site.
+            </p>
+            <p className="mt-2 text-[14px]">
+              {invited === 'failed'
+                ? 'The site gate is active, but the Clerk invitation could not be sent. Ask the auditor to sign up with the same registered email.'
+                : 'If the auditor does not already have a Clerk account, an invitation was sent with the QR audit link.'}
+            </p>
+          </div>
+        )}
         {error && (
           <div className="admin-notice mt-6" role="alert">
             <p className="eyebrow">Not saved</p>
-            <p className="mt-2 font-medium">Check the evidence fields and try again.</p>
+            <p className="mt-2 font-medium">{siteActionErrorMessage(error)}</p>
+          </div>
+        )}
+        {ownerReviewPending && (
+          <div className="admin-notice mt-6" role="status">
+            <p className="eyebrow">Owner approval link</p>
+            <p className="mt-2 font-medium">
+              Review photos and approve this baseline from the owner approval page.
+            </p>
+            <p className="mt-2 text-[14px]">
+              If this browser is signed in as an admin, open the review page and sign out there. It will return to the approval screen so the owner can sign in with {site.ownerApproverEmail || 'the assigned owner account'}.
+            </p>
+            <Link href={`/sites/${site.id}/review`} className="command-button mt-4 inline-flex">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span>Open owner review</span>
+            </Link>
           </div>
         )}
 
@@ -205,6 +247,15 @@ export default async function SitePage({
                   </p>
                   <p className="body-copy text-[14px]">
                     Current lifecycle stage: {stageLabel(site.stage)}.
+                  </p>
+                </div>
+              ) : !canConfirmCounts ? (
+                <div className="grid gap-3">
+                  <p className="body-copy">
+                    Planting details are ready for final confirmation, but this step must be completed from an admin account.
+                  </p>
+                  <p className="body-copy text-[14px]">
+                    Sign out of the owner account, sign in as a PlantSure admin, then open this site again to create the monitoring schedule.
                   </p>
                 </div>
               ) : (
@@ -301,7 +352,8 @@ export default async function SitePage({
           </section>
         )}
 
-        <CheckCapturePanel site={site} />
+        <QrAuditPanel site={site} />
+        <SiteAuditorsPanel site={site} canManage={canManageAuditors} />
       </div>
     </InternalShell>
   )
@@ -682,7 +734,7 @@ function LifecycleDetailStep({
   )
 }
 
-function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
+function QrAuditPanel({ site }: { site: AdminSiteDetail }) {
   const today = new Date().toISOString().slice(0, 10)
   const window = site.windows.find((item) => isWindowOpenForCheck(item, today)) ?? null
   const nextScheduledWindow = site.windows.find(
@@ -693,9 +745,9 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
     <section className="admin-panel mt-7" aria-labelledby="check-capture-heading">
       <div className="admin-panel-header">
         <div>
-          <p className="eyebrow">Audit visit</p>
+          <p className="eyebrow">QR audit visit</p>
           <h2 id="check-capture-heading" className="section-title mt-1">
-            Record a check
+            Scan the site board to record
           </h2>
         </div>
       </div>
@@ -703,7 +755,10 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
       <div className="grid gap-5 p-5 sm:p-6">
         {!window ? (
           <div className="grid gap-2">
-            <p className="body-copy">No check window is open today.</p>
+            <p className="body-copy">
+              No QR check window is open today. Audit entry happens from the
+              board QR scan, not from a back-office form.
+            </p>
             {nextScheduledWindow && (
               <p className="body-copy text-[14px]">
                 Next check: {nextScheduledWindow.cycleLabel}, due{' '}
@@ -712,10 +767,7 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
             )}
           </div>
         ) : (
-          <form action={`/sites/${site.id}/checks`} method="post" className="grid gap-5">
-            <input type="hidden" name="siteId" value={site.id} />
-            <input type="hidden" name="windowId" value={window.id} />
-
+          <div className="grid gap-5">
             <div className="form-section-line">
               <div>
                 <p className="eyebrow">Open window</p>
@@ -726,85 +778,122 @@ function CheckCapturePanel({ site }: { site: AdminSiteDetail }) {
               <span className="public-status-pill">{statusText(window.status)}</span>
             </div>
 
-            <div className="repeat-list">
-              {site.species.map((species) => (
-                <div key={species.speciesName} className="repeat-row audit-species-row">
-                  <input type="hidden" name="auditSpeciesName" value={species.speciesName} />
-                  <div>
-                    <p className="font-medium">{species.speciesName}</p>
-                    <p className="body-copy text-[13px]">
-                      Baseline {species.plantedCount.toLocaleString()}
-                    </p>
-                  </div>
-                  <label className="field">
-                    <span>Alive now</span>
-                    <input
-                      className="input"
-                      name="auditSurvivingCount"
-                      type="number"
-                      min={0}
-                      max={species.plantedCount}
-                      required
-                    />
-                  </label>
-                </div>
-              ))}
+            <p className="body-copy">
+              Field staff should scan the printed board QR at the plantation and
+              record this visit from the QR audit page.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <Link className="command-button" href={`/p/${site.locationId}/check`}>
+                <Camera size={16} aria-hidden="true" />
+                <span>Open QR audit page</span>
+              </Link>
+              <Link className="secondary-button" href={`/sites/${site.id}/board`}>
+                <PanelTop size={16} aria-hidden="true" />
+                <span>Print board QR</span>
+              </Link>
             </div>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
 
-            <label className="field">
-              <span>Photo URLs</span>
-              <textarea
-                name="auditPhotoUrls"
-                rows={3}
-                className="input resize-none"
-                placeholder="One photo URL per line"
-                required
-              />
-            </label>
+function SiteAuditorsPanel({
+  site,
+  canManage,
+}: {
+  site: AdminSiteDetail
+  canManage: boolean
+}) {
+  return (
+    <section className="admin-panel mt-7" aria-labelledby="site-auditors-heading">
+      <div className="admin-panel-header">
+        <div>
+          <p className="eyebrow">Registered auditors</p>
+          <h2 id="site-auditors-heading" className="section-title mt-1">
+            QR scan access
+          </h2>
+        </div>
+        <span className="public-status-pill">
+          {site.auditors.filter((auditor) => auditor.active).length} active
+        </span>
+      </div>
 
+      <div className="grid gap-5 p-5 sm:p-6">
+        <p className="body-copy">
+          Only PlantSure admins and active auditors attached here can open the
+          scanned-site audit template after Clerk sign-in.
+        </p>
+
+        {site.auditors.length > 0 ? (
+          <div className="repeat-list">
+            {site.auditors.map((auditor) => (
+              <div key={auditor.id} className="repeat-row">
+                <div>
+                  <p className="font-medium">{auditor.displayName || auditor.email}</p>
+                  <p className="body-copy text-[13px]">{auditor.email}</p>
+                </div>
+                <span className="public-status-pill">
+                  {auditor.active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="admin-notice" role="status">
+            <div className="flex items-start gap-3">
+              <Mail size={18} aria-hidden="true" />
+              <div>
+                <p className="eyebrow">No assigned auditors</p>
+                <p className="mt-2 font-medium">
+                  A scanned QR audit can still be opened by admins, but no
+                  field auditor email is registered for this site yet.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {canManage ? (
+          <form action={`/sites/${site.id}/auditors`} method="post" className="grid gap-4">
+            <div className="form-section-line">
+              <div>
+                <p className="eyebrow">Attach auditor</p>
+                <h3 className="section-title mt-1">Register email for QR checks</h3>
+              </div>
+              <UserPlus size={22} aria-hidden="true" style={{ color: 'var(--alive)' }} />
+            </div>
             <div className="form-grid">
               <label className="field">
-                <span>Checked at</span>
+                <span>Auditor email</span>
                 <input
                   className="input"
-                  name="auditedAt"
-                  type="datetime-local"
-                  defaultValue={new Date().toISOString().slice(0, 16)}
+                  name="email"
+                  type="email"
+                  placeholder="auditor@example.com"
                   required
                 />
               </label>
               <label className="field">
-                <span>GPS status</span>
-                <select className="input" name="gpsStatus" defaultValue="confirmed" required>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="plausible">Plausible</option>
-                  <option value="questionable">Questionable</option>
-                  <option value="unavailable">Unavailable</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>Latitude</span>
-                <input className="input" name="auditLatitude" inputMode="decimal" />
-              </label>
-              <label className="field">
-                <span>Longitude</span>
-                <input className="input" name="auditLongitude" inputMode="decimal" />
-              </label>
-              <label className="field">
-                <span>GPS accuracy</span>
-                <input className="input" name="auditGpsAccuracy" inputMode="decimal" />
+                <span>Name</span>
+                <input
+                  className="input"
+                  name="displayName"
+                  placeholder="Field auditor"
+                />
               </label>
             </div>
-
-            <label className="field">
-              <span>Remarks</span>
-              <textarea name="remarks" rows={3} className="input resize-none" />
-            </label>
-
             <button className="command-button justify-self-start" type="submit">
-              Record check
+              <UserPlus size={16} aria-hidden="true" />
+              Register auditor
             </button>
           </form>
+        ) : (
+          <p className="body-copy text-[14px]">
+            Auditor assignment is managed from a PlantSure admin account.
+          </p>
         )}
       </div>
     </section>
@@ -892,16 +981,42 @@ function StageEvidenceForm({
           />
         </label>
         <label className="field">
-          <span>GPS accuracy</span>
-          <input className="input" name="gpsAccuracy" inputMode="decimal" />
+          <span>GPS accuracy (m)</span>
+          <input
+            className="input"
+            name="gpsAccuracy"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="5.5"
+          />
         </label>
         <label className="field">
           <span>Latitude</span>
-          <input className="input" name="evidenceLatitude" inputMode="decimal" />
+          <input
+            className="input"
+            name="evidenceLatitude"
+            type="number"
+            min="-90"
+            max="90"
+            step="0.000001"
+            inputMode="decimal"
+            placeholder="13.312000"
+          />
         </label>
         <label className="field">
           <span>Longitude</span>
-          <input className="input" name="evidenceLongitude" inputMode="decimal" />
+          <input
+            className="input"
+            name="evidenceLongitude"
+            type="number"
+            min="-180"
+            max="180"
+            step="0.000001"
+            inputMode="decimal"
+            placeholder="76.941000"
+          />
         </label>
       </div>
 
@@ -928,6 +1043,34 @@ function nextEvidenceStage(stage: string): 'pits_dug' | 'planted' | null {
   }
 
   return null
+}
+
+function siteActionErrorMessage(error: string): string {
+  if (error === 'confirm') {
+    return 'Planting details can only be confirmed from a PlantSure admin account after owner approval.'
+  }
+
+  if (error === 'stage_photos') {
+    return 'Add at least one valid photo URL and try again.'
+  }
+
+  if (error === 'stage_coordinates') {
+    return 'Latitude and longitude must be decimal numbers.'
+  }
+
+  if (error === 'stage_gps') {
+    return 'GPS accuracy must be a number in metres. Leave it blank if unavailable.'
+  }
+
+  if (error === 'auditor') {
+    return 'Enter a valid auditor email from an admin account and try again.'
+  }
+
+  if (error === 'auditor_access') {
+    return 'Only a PlantSure admin or an active registered auditor for this site can record the QR audit.'
+  }
+
+  return 'Check the evidence fields and try again.'
 }
 
 const lifecycleStageOrder = [
