@@ -185,6 +185,107 @@
     padding: 1rem 1.25rem;
   }
 
+  .pwa-panel {
+    display: grid;
+    gap: 1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--alive-bg) 28%, var(--card));
+    padding: 1rem;
+  }
+
+  @media (min-width: 720px) {
+    .pwa-panel {
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 0.65fr);
+      align-items: center;
+      padding: 1.1rem 1.25rem;
+    }
+  }
+
+  .pwa-panel-main {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .pwa-panel-icon {
+    display: inline-flex;
+    height: 42px;
+    width: 42px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--alive) 36%, var(--rule));
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--alive);
+  }
+
+  .pwa-status-grid {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  @media (min-width: 480px) {
+    .pwa-status-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .pwa-status-grid dt {
+    color: var(--ink-faint);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .pwa-status-grid dd {
+    display: inline-flex;
+    min-height: 34px;
+    width: 100%;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 0.45rem 0.55rem;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .pwa-status-grid dd[data-state="ready"] {
+    border-color: color-mix(in srgb, var(--alive) 36%, var(--rule));
+    color: var(--alive);
+  }
+
+  .pwa-status-grid dd[data-state="blocked"] {
+    border-color: color-mix(in srgb, var(--overdue) 45%, var(--rule));
+    color: var(--overdue);
+  }
+
+  .pwa-actions {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  @media (min-width: 720px) {
+    .pwa-actions {
+      grid-column: 1 / -1;
+      justify-items: start;
+    }
+  }
+
+  .pwa-ios-note,
+  .pwa-inline-status {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
   .internal-shell {
     min-height: 100vh;
     background: var(--paper);

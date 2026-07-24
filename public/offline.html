@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#3b6d11" />
+    <title>PlantSure Offline</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #faf9f5;
+        --card: #ffffff;
+        --rule: #c9c5b8;
+        --ink: #1f1e1b;
+        --ink-soft: #5f5d55;
+        --alive: #3b6d11;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: 24px;
+      }
+
+      article {
+        width: min(100%, 520px);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        background: var(--card);
+        padding: 24px;
+        box-shadow: 0 1px 2px rgba(31, 30, 27, 0.05);
+      }
+
+      .mark {
+        display: inline-grid;
+        height: 42px;
+        width: 42px;
+        place-items: center;
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        color: var(--alive);
+      }
+
+      h1 {
+        margin: 18px 0 8px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+        font-weight: 400;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0;
+        color: var(--ink-soft);
+        font-size: 15px;
+      }
+
+      a {
+        display: inline-flex;
+        min-height: 42px;
+        align-items: center;
+        margin-top: 22px;
+        border: 1px solid var(--ink);
+        border-radius: 6px;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 10px 14px;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 20v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 11C8 11 5.5 8.8 5 5c3.8-.3 6.5 1.4 7.6 4.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12.4 13C13 8.8 15.7 6.4 20 6c.2 4.4-2.3 7-6.6 7.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1>Offline</h1>
+        <p>
+          PlantSure needs a network connection to load assignments, verify audit access,
+          and save QR evidence. Reconnect before starting or submitting a field audit.
+        </p>
+        <a href="/auditor">Try again</a>
+      </article>
+    </main>
+  </body>
+</html>

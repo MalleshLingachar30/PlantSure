@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PlantSure">
+  <rect width="512" height="512" rx="84" fill="#faf9f5"/>
+  <rect x="38" y="38" width="436" height="436" rx="64" fill="#ffffff" stroke="#c9c5b8" stroke-width="10"/>
+  <path d="M254 354V229" fill="none" stroke="#3b6d11" stroke-width="24" stroke-linecap="round"/>
+  <path d="M254 236c-48-3-84-31-96-76 47-7 89 14 111 55" fill="none" stroke="#3b6d11" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M256 262c10-54 45-87 100-95 8 57-24 101-84 115" fill="none" stroke="#3b6d11" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M156 354h200" fill="none" stroke="#1f1e1b" stroke-width="22" stroke-linecap="round"/>
+</svg>

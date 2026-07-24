@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ClipboardCheck, MapPinned, QrCode } from 'lucide-react'
+import { AuditorPwaPanel } from '@/components/auditor-pwa-panel'
 import { InternalShell } from '@/components/internal-shell'
 import { listAuditorAssignments, type AuditorAssignment } from '@/lib/audit-assignments'
 import { requirePlantationMember } from '@/lib/auth-member'
@@ -42,6 +43,8 @@ export default async function AuditorDashboardPage({
             site board QR to unlock the audit form for that accepted order.
           </p>
         </header>
+
+        <AuditorPwaPanel />
 
         {accepted && (
           <div className="admin-notice mt-6" role="status">

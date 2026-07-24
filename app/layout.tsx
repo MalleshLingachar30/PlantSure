@@ -1,6 +1,7 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from 'next/font/google'
+import { PwaServiceWorker } from '@/components/pwa-service-worker'
 import './globals.css'
 
 const inter = Inter({
@@ -23,8 +24,31 @@ const mono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'PlantSure',
+  applicationName: 'PlantSure Field',
+  title: {
+    default: 'PlantSure',
+    template: '%s · PlantSure',
+  },
   description: 'Plantation monitoring that records missed checks.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'PlantSure',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon-192.png',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#3b6d11',
 }
 
 export default function RootLayout({
@@ -39,6 +63,7 @@ export default function RootLayout({
     >
       <body>
         <ClerkProvider dynamic>{children}</ClerkProvider>
+        <PwaServiceWorker />
       </body>
     </html>
   )

@@ -1,0 +1,48 @@
+{
+  "name": "PlantSure Field",
+  "short_name": "PlantSure",
+  "description": "Field audit assignments, QR checks, live photo evidence, and GPS capture for plantation monitoring.",
+  "start_url": "/auditor?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "background_color": "#faf9f5",
+  "theme_color": "#3b6d11",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Audits",
+      "short_name": "Audits",
+      "description": "Open assigned and accepted audit orders.",
+      "url": "/auditor",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
