@@ -3,12 +3,20 @@
 import { useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Camera, Crosshair, RefreshCcw } from 'lucide-react'
-import type { AdminAuditWindow, AdminBatchSpecies } from '@/lib/admin-data'
+import type { AdminBatchSpecies } from '@/lib/admin-data'
+
+type AuditCheckWindow = {
+  id: string
+  cycleLabel: string
+  dueDate: string
+  graceUntil: string
+  status: string
+}
 
 type AuditCheckFormProps = {
   siteId: string
   species: AdminBatchSpecies[]
-  window: AdminAuditWindow
+  window: AuditCheckWindow
   returnTo: 'console' | 'public'
   locationId?: string
 }

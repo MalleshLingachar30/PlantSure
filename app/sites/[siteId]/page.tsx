@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Camera, ClipboardCheck, ExternalLink, Mail, PanelTop, ShieldCheck, UserPlus } from 'lucide-react'
+import { Camera, ClipboardCheck, ExternalLink, Eye, Mail, PanelTop, ShieldCheck, UserPlus } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { requirePlantationMember } from '@/lib/auth-member'
 import {
@@ -970,6 +970,7 @@ function AuditAssignmentsPanel({
                   <th>Due</th>
                   <th>Assignment</th>
                   <th>Auditor</th>
+                  <th>Evidence</th>
                 </tr>
               </thead>
               <tbody>
@@ -987,6 +988,21 @@ function AuditAssignmentsPanel({
                           : window.status === 'scheduled'
                             ? 'Available'
                             : 'Not available'}
+                      </td>
+                      <td>
+                        {window.auditId ? (
+                          <Link
+                            className="secondary-button inline-flex"
+                            href={`/sites/${site.id}/audits/${window.auditId}`}
+                          >
+                            <Eye size={15} aria-hidden="true" />
+                            <span>Review audit</span>
+                          </Link>
+                        ) : assignment?.status === 'submitted' ? (
+                          'Submitted'
+                        ) : (
+                          'No audit yet'
+                        )}
                       </td>
                     </tr>
                   )

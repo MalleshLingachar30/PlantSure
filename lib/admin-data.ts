@@ -37,6 +37,7 @@ export type AdminAuditWindow = {
   dueDate: string
   graceUntil: string
   status: string
+  auditId: string | null
 }
 
 export type AdminSiteDetail = AdminSiteSummary & {
@@ -86,6 +87,59 @@ export type AdminAuditAssignment = {
   assignedAt: string
   acceptedAt: string | null
   submittedAt: string | null
+}
+
+export type AdminAuditSpeciesResult = {
+  speciesName: string
+  plantedCount: number
+  survivingCount: number
+  survivalRate: string
+}
+
+export type AdminAuditReview = {
+  id: string
+  siteId: string
+  programName: string
+  locationId: string
+  siteName: string
+  village: string
+  taluk: string
+  district: string
+  siteLatitude: string
+  siteLongitude: string
+  plantedCount: number
+  plantingDate: string
+  cycleLabel: string
+  dueDate: string
+  graceUntil: string
+  windowStatus: string
+  auditedAt: string
+  receivedAt: string
+  accessMethod: string
+  auditorName: string | null
+  auditorEmail: string | null
+  survivingCount: number
+  missingCount: number
+  survivalRate: string
+  band: string
+  latitude: string | null
+  longitude: string | null
+  gpsAccuracyM: string | null
+  distanceFromSiteM: string | null
+  gpsStatus: string
+  photoUrls: string[]
+  remarks: string | null
+  assignment: {
+    status: string
+    auditorEmail: string
+    auditorName: string | null
+    assignedAt: string
+    acceptedAt: string | null
+    submittedAt: string | null
+    assignedByName: string | null
+    acceptedByName: string | null
+  } | null
+  speciesResults: AdminAuditSpeciesResult[]
 }
 
 export type AdminSiteAcceptance = {
@@ -421,9 +475,10 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
       due_date: Date | string
       grace_until: Date | string
       status: string
+      audit_id: string | null
     }>(
       `
-        select id, sequence_number, cycle_label, due_date, grace_until, status
+        select id, sequence_number, cycle_label, due_date, grace_until, status, audit_id
         from plantation_audit_windows
         where site_id = $1
         order by sequence_number
@@ -541,6 +596,7 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
         dueDate: dateString(row.due_date),
         graceUntil: dateString(row.grace_until),
         status: row.status,
+        auditId: row.audit_id,
       })),
       stageEvidence: evidenceResult.rows.map((row) => ({
         id: row.id,
@@ -624,6 +680,216 @@ export async function getAdminSiteDetail(siteId: string): Promise<AdminSiteDetai
     auditAssignments,
     acceptance,
   }
+}
+
+export async function getAdminAuditReview(
+  siteId: string,
+  auditId: string,
+): Promise<AdminAuditReview | null> {
+  if (!hasDatabaseUrl()) {
+    return null
+  }
+
+  return withDatabase(async (client) => {
+    const result = await client.query<{
+      id: string
+      site_id: string
+      program_name: string
+      location_id: string
+      site_name: string
+      village: string
+      taluk: string
+      district: string
+      site_latitude: string
+      site_longitude: string
+      planted_count: number
+      planting_date: Date | string
+      cycle_label: string
+      due_date: Date | string
+      grace_until: Date | string
+      window_status: string
+      audited_at: Date | string
+      received_at: Date | string
+      access_method: string
+      auditor_name: string | null
+      auditor_email: string | null
+      surviving_count: number
+      missing_count: number
+      survival_rate: string
+      band: string
+      latitude: string | null
+      longitude: string | null
+      gps_accuracy_m: string | null
+      distance_from_site_m: string | null
+      gps_status: string
+      photo_urls: string[] | null
+      remarks: string | null
+    }>(
+      `
+        select
+          audits.id,
+          audits.site_id,
+          programs.name as program_name,
+          sites.location_id,
+          sites.name as site_name,
+          sites.village,
+          sites.taluk,
+          sites.district,
+          sites.latitude::text as site_latitude,
+          sites.longitude::text as site_longitude,
+          sites.planted_count,
+          sites.planting_date,
+          windows.cycle_label,
+          windows.due_date,
+          windows.grace_until,
+          windows.status::text as window_status,
+          audits.audited_at,
+          audits.received_at,
+          audits.access_method::text,
+          members.display_name as auditor_name,
+          members.email as auditor_email,
+          audits.surviving_count,
+          audits.missing_count,
+          audits.survival_rate::text,
+          audits.band::text,
+          audits.latitude::text,
+          audits.longitude::text,
+          audits.gps_accuracy_m::text,
+          audits.distance_from_site_m::text,
+          audits.gps_status::text,
+          audits.photo_urls,
+          audits.remarks
+        from plantation_audits audits
+        join plantation_sites sites on sites.id = audits.site_id
+        join plantation_programs programs on programs.id = sites.program_id
+        join plantation_audit_windows windows on windows.id = audits.window_id
+        join plantation_members members on members.id = audits.auditor_member_id
+        where audits.site_id = $1
+          and audits.id = $2
+      `,
+      [siteId, auditId],
+    )
+    const row = result.rows[0]
+
+    if (!row) {
+      return null
+    }
+
+    const assignmentResult = await client.query<{
+      status: string
+      auditor_email: string
+      auditor_name: string | null
+      assigned_at: Date | string
+      accepted_at: Date | string | null
+      submitted_at: Date | string | null
+      assigned_by_name: string | null
+      accepted_by_name: string | null
+    }>(
+      `
+        select
+          assignments.status,
+          assignments.auditor_email,
+          site_auditors.display_name as auditor_name,
+          assignments.assigned_at,
+          assignments.accepted_at,
+          assignments.submitted_at,
+          assigned_by.display_name as assigned_by_name,
+          accepted_by.display_name as accepted_by_name
+        from plantation_audit_assignments assignments
+        left join plantation_site_auditors site_auditors
+          on site_auditors.id = assignments.site_auditor_id
+        left join plantation_members assigned_by
+          on assigned_by.id = assignments.assigned_by_member_id
+        left join plantation_members accepted_by
+          on accepted_by.id = assignments.accepted_by_member_id
+        where assignments.site_id = $1
+          and assignments.window_id = (
+            select window_id
+            from plantation_audits
+            where id = $2
+          )
+        order by assignments.submitted_at desc nulls last, assignments.assigned_at desc
+        limit 1
+      `,
+      [siteId, auditId],
+    )
+    const speciesResult = await client.query<{
+      species_name: string
+      planted_count: number
+      surviving_count: number
+      survival_rate: string
+    }>(
+      `
+        select
+          species_name,
+          planted_count,
+          surviving_count,
+          survival_rate::text
+        from plantation_audit_species_results
+        where audit_id = $1
+        order by species_name
+      `,
+      [auditId],
+    )
+    const assignment = assignmentResult.rows[0]
+
+    return {
+      id: row.id,
+      siteId: row.site_id,
+      programName: row.program_name,
+      locationId: row.location_id,
+      siteName: row.site_name,
+      village: row.village,
+      taluk: row.taluk,
+      district: row.district,
+      siteLatitude: row.site_latitude,
+      siteLongitude: row.site_longitude,
+      plantedCount: row.planted_count,
+      plantingDate: dateString(row.planting_date),
+      cycleLabel: row.cycle_label,
+      dueDate: dateString(row.due_date),
+      graceUntil: dateString(row.grace_until),
+      windowStatus: row.window_status,
+      auditedAt: timestampDateString(row.audited_at),
+      receivedAt: timestampDateString(row.received_at),
+      accessMethod: row.access_method,
+      auditorName: row.auditor_name,
+      auditorEmail: row.auditor_email,
+      survivingCount: row.surviving_count,
+      missingCount: row.missing_count,
+      survivalRate: row.survival_rate,
+      band: row.band,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      gpsAccuracyM: row.gps_accuracy_m,
+      distanceFromSiteM: row.distance_from_site_m,
+      gpsStatus: row.gps_status,
+      photoUrls: row.photo_urls ?? [],
+      remarks: row.remarks,
+      assignment: assignment
+        ? {
+            status: assignment.status,
+            auditorEmail: assignment.auditor_email,
+            auditorName: assignment.auditor_name,
+            assignedAt: timestampDateString(assignment.assigned_at),
+            acceptedAt: assignment.accepted_at
+              ? timestampDateString(assignment.accepted_at)
+              : null,
+            submittedAt: assignment.submitted_at
+              ? timestampDateString(assignment.submitted_at)
+              : null,
+            assignedByName: assignment.assigned_by_name,
+            acceptedByName: assignment.accepted_by_name,
+          }
+        : null,
+      speciesResults: speciesResult.rows.map((species) => ({
+        speciesName: species.species_name,
+        plantedCount: species.planted_count,
+        survivingCount: species.surviving_count,
+        survivalRate: species.survival_rate,
+      })),
+    }
+  })
 }
 
 export async function getPublicSiteByLocationId(

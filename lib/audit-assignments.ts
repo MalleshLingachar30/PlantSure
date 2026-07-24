@@ -28,6 +28,7 @@ export type AuditorAssignment = {
   submittedAt: string | null
   plantedCount: number
   latestSurvivalRate: string | null
+  auditId: string | null
 }
 
 export async function assignAuditWindow(
@@ -118,6 +119,7 @@ export async function listAuditorAssignments(
     submitted_at: Date | string | null
     planted_count: number
     latest_survival_rate: string | null
+    audit_id: string | null
   }>(
     `
       select
@@ -138,10 +140,12 @@ export async function listAuditorAssignments(
         assignments.accepted_at,
         assignments.submitted_at,
         sites.planted_count,
-        latest_audits.survival_rate::text as latest_survival_rate
+        latest_audits.survival_rate::text as latest_survival_rate,
+        window_audits.id as audit_id
       from plantation_audit_assignments assignments
       join plantation_sites sites on sites.id = assignments.site_id
       join plantation_audit_windows windows on windows.id = assignments.window_id
+      left join plantation_audits window_audits on window_audits.id = windows.audit_id
       left join lateral (
         select audits.survival_rate
         from plantation_audits audits
@@ -150,12 +154,13 @@ export async function listAuditorAssignments(
         limit 1
       ) latest_audits on true
       where lower(btrim(assignments.auditor_email)) = $1
-        and assignments.status in ('assigned', 'accepted')
+        and assignments.status in ('assigned', 'accepted', 'submitted')
       order by
         case assignments.status
           when 'accepted' then 1
           when 'assigned' then 2
-          else 3
+          when 'submitted' then 3
+          else 4
         end,
         windows.due_date asc,
         assignments.assigned_at asc
@@ -182,6 +187,7 @@ export async function listAuditorAssignments(
     submittedAt: row.submitted_at ? timestampDateString(row.submitted_at) : null,
     plantedCount: row.planted_count,
     latestSurvivalRate: row.latest_survival_rate,
+    auditId: row.audit_id,
   }))
 }
 

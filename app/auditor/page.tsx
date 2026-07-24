@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ClipboardCheck, MapPinned, QrCode } from 'lucide-react'
+import { ClipboardCheck, ExternalLink, MapPinned, QrCode } from 'lucide-react'
 import { AuditorPwaPanel } from '@/components/auditor-pwa-panel'
 import { InternalShell } from '@/components/internal-shell'
 import { listAuditorAssignments, type AuditorAssignment } from '@/lib/audit-assignments'
@@ -31,6 +31,7 @@ export default async function AuditorDashboardPage({
   ])
   const acceptedAssignments = assignments.filter((assignment) => assignment.status === 'accepted')
   const assignedAssignments = assignments.filter((assignment) => assignment.status === 'assigned')
+  const submittedAssignments = assignments.filter((assignment) => assignment.status === 'submitted')
 
   return (
     <InternalShell active="auditor" member={member}>
@@ -118,6 +119,13 @@ export default async function AuditorDashboardPage({
                 assignments={assignedAssignments}
               />
             )}
+            {submittedAssignments.length > 0 && (
+              <AssignmentGroup
+                title="Submitted history"
+                eyebrow="Completed"
+                assignments={submittedAssignments}
+              />
+            )}
           </div>
         )}
       </div>
@@ -156,6 +164,7 @@ function AssignmentGroup({
 
 function AuditAssignmentCard({ assignment }: { assignment: AuditorAssignment }) {
   const accepted = assignment.status === 'accepted'
+  const submitted = assignment.status === 'submitted'
 
   return (
     <article className="repeat-row items-start">
@@ -188,13 +197,24 @@ function AuditAssignmentCard({ assignment }: { assignment: AuditorAssignment }) 
             <dt>Last survival</dt>
             <dd>{assignment.latestSurvivalRate ? `${assignment.latestSurvivalRate}%` : 'No audit yet'}</dd>
           </div>
+          {submitted && assignment.submittedAt && (
+            <div>
+              <dt>Submitted</dt>
+              <dd>{displayDate(assignment.submittedAt)}</dd>
+            </div>
+          )}
         </dl>
       </div>
       <div className="grid min-w-[190px] gap-3 justify-items-start sm:justify-items-end">
         <span className="public-status-pill">
-          {accepted ? 'Accepted' : 'Assigned'}
+          {submitted ? 'Submitted' : accepted ? 'Accepted' : 'Assigned'}
         </span>
-        {accepted ? (
+        {submitted ? (
+          <Link className="secondary-button" href={`/p/${assignment.locationId}`}>
+            <ExternalLink size={16} aria-hidden="true" />
+            <span>View public record</span>
+          </Link>
+        ) : accepted ? (
           <>
             <Link className="command-button" href={`/p/${assignment.locationId}/check`}>
               <QrCode size={16} aria-hidden="true" />

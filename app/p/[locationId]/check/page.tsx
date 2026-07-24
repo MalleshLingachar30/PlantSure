@@ -5,7 +5,7 @@ import { AuditCheckForm } from '@/components/audit-check-form'
 import { SignOutControl } from '@/components/sign-out-control'
 import { hasAcceptedAuditAssignment } from '@/lib/audit-assignments'
 import { getSiteAuditorAccess } from '@/lib/auth-member'
-import type { AdminAuditWindow } from '@/lib/admin-data'
+import type { PublicAuditVisit } from '@/lib/admin-data'
 import { getPublicSiteByLocationId } from '@/lib/admin-data'
 import { withDatabase } from '@/lib/db'
 import { displayDate } from '@/lib/site-url'
@@ -346,7 +346,7 @@ function statusText(status: string): string {
   return 'Scheduled'
 }
 
-function isWindowOpenForCheck(window: AdminAuditWindow, today: string): boolean {
+function isWindowOpenForCheck(window: PublicAuditVisit, today: string): boolean {
   return (
     window.status === 'scheduled' &&
     window.dueDate <= today &&
