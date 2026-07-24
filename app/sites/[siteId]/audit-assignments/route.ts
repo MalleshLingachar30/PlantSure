@@ -2,7 +2,7 @@ import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { assignAuditWindow } from '@/lib/audit-assignments'
-import { requirePlantationMember } from '@/lib/auth-member'
+import { requireSiteAuditManager } from '@/lib/auth-member'
 import { ensureAuditorInvitation } from '@/lib/auditor-invitation'
 import { withDatabase } from '@/lib/db'
 
@@ -25,7 +25,7 @@ export async function POST(
 
   try {
     const assignment = await withDatabase(async (client) => {
-      const member = await requirePlantationMember(client, ['admin'])
+      const member = await requireSiteAuditManager(client, siteId)
 
       return assignAuditWindow(client, {
         siteId,
@@ -62,4 +62,3 @@ export async function POST(
 function redirectToSite(request: Request, siteId: string, error: string) {
   return NextResponse.redirect(new URL(`/sites/${siteId}?console=1&error=${error}`, request.url), 303)
 }
-

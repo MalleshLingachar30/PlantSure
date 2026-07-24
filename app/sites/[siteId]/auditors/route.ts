@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requirePlantationMember } from '@/lib/auth-member'
+import { requireSiteAuditManager } from '@/lib/auth-member'
 import { ensureAuditorInvitation } from '@/lib/auditor-invitation'
 import { withDatabase } from '@/lib/db'
 
@@ -28,7 +28,7 @@ export async function POST(
 
   try {
     const assignment = await withDatabase(async (client) => {
-      const member = await requirePlantationMember(client, ['admin'])
+      const member = await requireSiteAuditManager(client, siteId)
       const siteResult = await client.query<{ location_id: string }>(
         `
           select location_id

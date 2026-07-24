@@ -67,9 +67,19 @@ export default async function SitePage({
     notFound()
   }
 
+  const isScientificInstitutionAdmin =
+    member.role === 'manager' &&
+    Boolean(member.email) &&
+    Boolean(site.scientificAdvisorContactEmail) &&
+    member.email!.trim().toLowerCase() === site.scientificAdvisorContactEmail!.trim().toLowerCase()
+
+  if (member.role === 'manager' && !isScientificInstitutionAdmin) {
+    notFound()
+  }
+
   const locked = site.status === 'counts_confirmed'
   const canConfirmCounts = member.role === 'admin'
-  const canManageAuditors = member.role === 'admin'
+  const canManageAuditors = member.role === 'admin' || isScientificInstitutionAdmin
   const monitoringEndPreview = site.monitoringEnd ?? addYears(site.plantingDate, 5)
   const timeline = timelineFromWindows(site.windows)
 
@@ -858,8 +868,8 @@ function SiteAuditorsPanel({
               <div>
                 <p className="eyebrow">No assigned auditors</p>
                 <p className="mt-2 font-medium">
-                  A scanned QR audit can still be opened by admins, but no
-                  field auditor email is registered for this site yet.
+                  No field auditor email is registered for this site yet.
+                  Register an auditor before allocating work orders.
                 </p>
               </div>
             </div>

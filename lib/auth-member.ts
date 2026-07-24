@@ -72,6 +72,7 @@ export async function requirePlantationMember(
         display_name = excluded.display_name,
         role = case
           when excluded.role = 'admin' then 'admin'::plantation_member_role
+          when excluded.role = 'manager' then 'manager'::plantation_member_role
           when excluded.role = 'technician' then 'technician'::plantation_member_role
           else plantation_members.role
         end,
@@ -101,6 +102,43 @@ export async function requirePlantationMember(
 
 export async function requireAdminMember(db: Queryable): Promise<AuthenticatedMember> {
   return requirePlantationMember(db, ['admin'])
+}
+
+export async function requireSiteAuditManager(
+  db: Queryable,
+  siteId: string,
+): Promise<AuthenticatedMember> {
+  const member = await requirePlantationMember(db, ['admin', 'manager'])
+
+  if (member.role === 'admin') {
+    return member
+  }
+
+  if (!member.email) {
+    throw new Error('Scientific institution admin access is required')
+  }
+
+  const result = await db.query<{ matched: boolean }>(
+    `
+      select exists(
+        select 1
+        from plantation_sites sites
+        join plantation_programs programs on programs.id = sites.program_id
+        join plantation_organizations organizations on organizations.id = programs.organization_id
+        join plantation_scientific_advisors advisors
+          on advisors.id = organizations.scientific_advisor_id
+        where sites.id = $1
+          and lower(btrim(coalesce(advisors.contact_email, ''))) = $2
+      ) as matched
+    `,
+    [siteId, member.email.trim().toLowerCase()],
+  )
+
+  if (!result.rows[0]?.matched) {
+    throw new Error('Scientific institution admin access is required')
+  }
+
+  return member
 }
 
 export async function getSiteAuditorAccess(
@@ -186,6 +224,21 @@ async function inferredRole(db: Queryable, email: string | null): Promise<Planta
   }
 
   if (normalizedEmail) {
+    const scientificAdvisorMatch = await db.query<{ matched: boolean }>(
+      `
+        select exists(
+          select 1
+          from plantation_scientific_advisors
+          where lower(coalesce(contact_email, '')) = $1
+        ) as matched
+      `,
+      [normalizedEmail],
+    )
+
+    if (scientificAdvisorMatch.rows[0]?.matched) {
+      return 'manager'
+    }
+
     const sponsorMatch = await db.query<{ matched: boolean }>(
       `
         select exists(

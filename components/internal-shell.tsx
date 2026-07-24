@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Home,
   MapPinned,
+  Microscope,
   Sprout,
 } from 'lucide-react'
 import type { AuthenticatedMember } from '@/lib/auth-member'
@@ -14,7 +15,7 @@ import {
   type SiteWorkflowMenuProps,
 } from '@/components/site-workflow-nav'
 
-type InternalSection = 'register' | 'sites' | 'auditor'
+type InternalSection = 'register' | 'sites' | 'advisor' | 'auditor'
 
 type InternalShellProps = {
   active: InternalSection
@@ -42,6 +43,12 @@ const navigation: Array<{
     icon: MapPinned,
   },
   {
+    key: 'advisor',
+    label: 'Institution audits',
+    href: '/advisor',
+    icon: Microscope,
+  },
+  {
     key: 'auditor',
     label: 'My audits',
     href: '/auditor',
@@ -52,6 +59,17 @@ const navigation: Array<{
 export function InternalShell({ active, children, member, siteMenu }: InternalShellProps) {
   const name = member?.displayName || member?.email || 'Signed in'
   const email = member?.displayName ? member.email : null
+  const visibleNavigation = navigation.filter((item) => {
+    if (item.key === 'register' || item.key === 'sites') {
+      return member?.role === 'admin'
+    }
+
+    if (item.key === 'advisor') {
+      return member?.role === 'admin' || member?.role === 'manager'
+    }
+
+    return member?.role === 'auditor'
+  })
 
   return (
     <main className="internal-shell">
@@ -69,7 +87,7 @@ export function InternalShell({ active, children, member, siteMenu }: InternalSh
 
           <nav className="internal-nav" aria-label="Primary">
             <p className="internal-nav-label">Work</p>
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon
 
               return (
@@ -107,7 +125,7 @@ export function InternalShell({ active, children, member, siteMenu }: InternalSh
             <span>PlantSure</span>
           </Link>
           <nav className="internal-topbar-nav" aria-label="Primary">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon
 
               return (
