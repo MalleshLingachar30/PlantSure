@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { Camera, Crosshair, RefreshCcw } from 'lucide-react'
 import type { AdminAuditWindow, AdminBatchSpecies } from '@/lib/admin-data'
 
@@ -23,7 +23,8 @@ export function AuditCheckForm({
   const [photoDataUrl, setPhotoDataUrl] = useState('')
   const [photoName, setPhotoName] = useState('')
   const [photoError, setPhotoError] = useState('')
-  const [photoSelected, setPhotoSelected] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [gpsState, setGpsState] = useState<{
     status: 'idle' | 'capturing' | 'captured' | 'error'
     latitude: string
@@ -38,7 +39,7 @@ export function AuditCheckForm({
     message: 'Capture current coordinates at the plantation before submitting.',
   })
   const auditedAt = useMemo(() => localDateTimeValue(new Date()), [])
-  const readyForSubmit = Boolean((photoDataUrl || photoSelected) && gpsState.latitude && gpsState.longitude)
+  const readyForSubmit = Boolean(photoDataUrl && gpsState.latitude && gpsState.longitude)
 
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0]
@@ -47,26 +48,29 @@ export function AuditCheckForm({
     if (!file) {
       setPhotoDataUrl('')
       setPhotoName('')
-      setPhotoSelected(false)
       return
     }
-
-    setPhotoSelected(true)
 
     if (!file.type.startsWith('image/')) {
       setPhotoError('Use the phone camera to capture an image.')
       setPhotoDataUrl('')
       setPhotoName('')
-      setPhotoSelected(false)
       return
     }
 
     try {
       const compressed = await compressImage(file)
+      if (compressed.length > MAX_CAPTURED_IMAGE_LENGTH) {
+        setPhotoError('The captured photo is too large. Retake it closer to the site evidence.')
+        setPhotoDataUrl('')
+        setPhotoName(file.name || 'Captured field photo')
+        return
+      }
+
       setPhotoDataUrl(compressed)
       setPhotoName(file.name || 'Captured field photo')
     } catch {
-      setPhotoError('Preview is unavailable, but the captured photo can still be submitted.')
+      setPhotoError('The photo could not be prepared. Retake it and wait for the preview.')
       setPhotoDataUrl('')
       setPhotoName(file.name || 'Captured field photo')
     }
@@ -117,8 +121,41 @@ export function AuditCheckForm({
     )
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    setSubmitError('')
+
+    const formData = new FormData(event.currentTarget)
+    const counts = formData.getAll('auditSurvivingCount').map((value) => `${value}`.trim())
+
+    if (counts.some((count) => !count)) {
+      event.preventDefault()
+      setSubmitError('Enter alive counts for every species before submitting.')
+      return
+    }
+
+    if (!photoDataUrl) {
+      event.preventDefault()
+      setSubmitError('Capture a live photo and wait for the preview before submitting.')
+      return
+    }
+
+    if (!gpsState.latitude || !gpsState.longitude) {
+      event.preventDefault()
+      setSubmitError('Capture GPS coordinates before submitting.')
+      return
+    }
+
+    setSubmitting(true)
+  }
+
   return (
-    <form action={`/sites/${siteId}/checks`} method="post" className="grid gap-5">
+    <form
+      action={`/sites/${siteId}/checks`}
+      method="post"
+      className="grid gap-5"
+      noValidate
+      onSubmit={handleSubmit}
+    >
       <input type="hidden" name="siteId" value={siteId} />
       <input type="hidden" name="windowId" value={window.id} />
       <input type="hidden" name="returnTo" value={returnTo} />
@@ -179,12 +216,10 @@ export function AuditCheckForm({
             <Camera size={17} aria-hidden="true" />
             <span>{photoDataUrl ? 'Retake photo' : 'Take live photo'}</span>
             <input
-              name="auditPhotoFile"
               type="file"
               accept="image/*"
               capture="environment"
               onChange={handlePhotoChange}
-              required={!photoDataUrl}
             />
           </label>
 
@@ -257,12 +292,21 @@ export function AuditCheckForm({
         <textarea name="remarks" rows={3} className="input resize-none" />
       </label>
 
-      <button className="command-button justify-self-start" type="submit" disabled={!readyForSubmit}>
-        {readyForSubmit ? 'Record QR check' : 'Complete photo and GPS first'}
+      {submitError && (
+        <div className="admin-notice" role="alert">
+          <p className="eyebrow">Audit not submitted</p>
+          <p className="mt-2 font-medium">{submitError}</p>
+        </div>
+      )}
+
+      <button className="command-button justify-self-start" type="submit" disabled={submitting}>
+        {submitting ? 'Saving audit...' : readyForSubmit ? 'Record QR check' : 'Review required fields'}
       </button>
     </form>
   )
 }
+
+const MAX_CAPTURED_IMAGE_LENGTH = 2_000_000
 
 function localDateTimeValue(value: Date): string {
   const year = value.getFullYear()
@@ -276,7 +320,7 @@ function localDateTimeValue(value: Date): string {
 
 async function compressImage(file: File): Promise<string> {
   const image = await loadImage(file)
-  const maxSide = 1280
+  const maxSide = 960
   const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
   const width = Math.max(1, Math.round(image.naturalWidth * scale))
   const height = Math.max(1, Math.round(image.naturalHeight * scale))
@@ -291,7 +335,7 @@ async function compressImage(file: File): Promise<string> {
 
   context.drawImage(image, 0, 0, width, height)
 
-  return canvas.toDataURL('image/jpeg', 0.78)
+  return canvas.toDataURL('image/jpeg', 0.68)
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
