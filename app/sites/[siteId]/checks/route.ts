@@ -160,7 +160,7 @@ function parsePhotoUrls(value: string | undefined): string[] | null {
   }
 
   const urls = value
-    .split(/[\n,]/)
+    .split(/\r?\n/)
     .map((url) => url.trim())
     .filter(Boolean)
 
